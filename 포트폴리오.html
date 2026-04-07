@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포트폴리오 빌더</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel (브라우저에서 JSX 컴파일) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
+  <!-- React 앱이 렌더링될 루트 -->
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    // --- Lucide 아이콘 대체용 (HTML에서 바로 쓰기 위한 SVG 컴포넌트) ---
+    const IconBase = ({ children, size = 24, className = "" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+    const Eye = (p) => <IconBase {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+    const Edit3 = (p) => <IconBase {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></IconBase>;
+    const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconBase>;
+    const Trash2 = (p) => <IconBase {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconBase>;
+    const ImageIcon = (p) => <IconBase {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></IconBase>;
+    const X = (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>;
+    const Plus = (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconBase>;
+    const ChevronLeft = (p) => <IconBase {...p}><polyline points="15 18 9 12 15 6"/></IconBase>;
+    const ChevronRight = (p) => <IconBase {...p}><polyline points="9 18 15 12 9 6"/></IconBase>;
+    const ZoomIn = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
+    const ZoomOut = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
+    const LinkIcon = (p) => <IconBase {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></IconBase>;
+
+    // --- 초기 데이터 세팅 ---
+    // /* DATA_START */
+    const initialHeader = {
+      name: "게임 기획자",
+      email: "GUPABAL@kakao.com",
+      phone: "010-4567-5368"
+    };
+
+    const initialTimeline = [
+      {
+        id: 7, period: "2023.06 ~ 재직중", company: "블루포션게임즈 (사원)", project: "대표 게임: 에오스블랙 | 엔진: 유니티", tags: "에오스블랙, 구조 설계, 수치 밸런스, 라이브 서비스", images: []
+      },
+      {
+        id: 6, period: "2021.05 ~ 2023.05", company: "플레이위드게임즈 (사원)", project: "대표 게임: 씰 온라인 M | 엔진: 유니티", tags: "Unity, 시스템 개편, 경제/전투 밸런스", images: []
+      },
+      {
+        id: 5, period: "2019.11 ~ 2021.04", company: "모히또게임즈 (사원)", project: "대표 게임: 히어로볼Z, Project M | 엔진: 유니티", tags: "라이브 서비스, 역기획서, 테이블 설계", images: []
+      },
+      {
+        id: 4, period: "2018.02 ~ 2019.02", company: "스톰게임즈 (사원)", project: "대표 게임: 라스트 소울 | 엔진: 유니티", tags: "Unity, 시스템 개편", images: []
+      },
+      {
+        id: 3, period: "2017.04 ~ 2018.02", company: "805FACTORY (기획 팀장)", project: "대표 게임: 던전 워커 | 엔진: 유니티", tags: "Unity, 팀 리딩/일정 관리, 전투/경제 밸런스", images: []
+      },
+      {
+        id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: []
+      },
+      {
+        id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: []
+      }
+    ];
+    // /* DATA_END */
+
+    const isExported = false; // 배포용 파일 변환 시 true로 치환됨
+
+    // --- 메인 App 컴포넌트 ---
+    function App() {
+      const [isEditing, setIsEditing] = useState(true);
+      const [header, setHeader] = useState(initialHeader);
+      const [timeline, setTimeline] = useState(initialTimeline);
+      const [lightbox, setLightbox] = useState({ isOpen: false, images: [], currentIndex: 0 });
+      const [activeCardId, setActiveCardId] = useState(null);
+
+      // 글로벌 클립보드 붙여넣기(Ctrl+V)
+      useEffect(() => {
+        const handleGlobalPaste = (e) => {
+          if (!isEditing || isExported) return;
+          const items = e.clipboardData?.items;
+          if (!items) return;
+
+          const files = [];
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+              files.push(items[i].getAsFile());
+            }
+          }
+          if (files.length === 0) return;
+
+          let targetId = activeCardId;
+          if (!targetId && timeline.length > 0) {
+            targetId = timeline[0].id;
+            setActiveCardId(targetId);
+          }
+          if (!targetId) return;
+
+          const activeItemIndex = timeline.findIndex(t => t.id === targetId);
+          if (activeItemIndex === -1) return;
+          const activeItem = timeline[activeItemIndex];
+          const isLarge = activeItemIndex === 0;
+
+          const newImages = [...activeItem.images];
+          let loadedCount = 0;
+
+          files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              newImages.push({
+                id: Date.now() + Math.random(),
+                src: ev.target.result,
+                size: activeItem.imageSize || (isLarge ? 160 : 112),
+                link: ""
+              });
+              loadedCount++;
+              if (loadedCount === files.length) {
+                setTimeline(prev => prev.map(item => item.id === targetId ? { ...item, images: newImages } : item));
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        };
+
+        window.addEventListener('paste', handleGlobalPaste);
+        return () => window.removeEventListener('paste', handleGlobalPaste);
+      }, [isEditing, activeCardId, timeline]);
+
+      // 🌟 완성본(읽기전용 HTML) 생성 및 다운로드 🌟
+      const handleDownloadHTML = () => {
+        const scriptElement = document.querySelector('script[type="text/babel"]');
+        if (!scriptElement) {
+          alert("HTML 코드를 생성할 수 없습니다.");
+          return;
+        }
+        
+        let code = scriptElement.innerText;
+        
+        // 1. 현재 편집된 데이터를 코드에 직접 주입
+        const dataReplacement = `\n    const initialHeader = ${JSON.stringify(header, null, 2)};\n    const initialTimeline = ${JSON.stringify(timeline, null, 2)};\n    `;
+        code = code.replace(/\/\/ \/\* DATA_START \*\/[\s\S]*?\/\/ \/\* DATA_END \*\//, `// /* DATA_START */${dataReplacement}// /* DATA_END */`);
+        
+        // 2. 초기 상태를 '편집 불가(false)'로 강제 변경
+        code = code.replace(/const \[isEditing, setIsEditing\] = useState\(true\);/, `const [isEditing, setIsEditing] = useState(false);`);
+        
+        // 3. 배포 모드 플래그 활성화 (상단 컨트롤 바 제거)
+        code = code.replace(/const isExported = false;/, `const isExported = true;`);
+
+        const scriptClose = '<' + '/script>';
+        const fullHtml = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${header.name} 포트폴리오</title>
+  <script src="https://cdn.tailwindcss.com">${scriptClose}
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin>${scriptClose}
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin>${scriptClose}
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js">${scriptClose}
+  <style>
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
+  <div id="root"></div>
+  <script type="text/babel">
+${code}
+  ${scriptClose}
+</body>
+</html>`;
+
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'portfolio_final.html';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        alert("편집이 완벽하게 잠긴 최종 포트폴리오 HTML 파일이 다운로드되었습니다!\n이 파일을 열면 읽기 전용으로만 보이며, GitHub Pages에 바로 올릴 수 있습니다.");
+      };
+
+      const addExperience = () => {
+        const newItem = {
+          id: Date.now(),
+          period: "YYYY.MM ~ YYYY.MM",
+          company: "새로운 회사 (직급)",
+          project: "대표 게임: 프로젝트명 | 엔진: 유니티",
+          tags: "태그1, 태그2",
+          images: [],
+          imageSize: 112
+        };
+        setTimeline([newItem, ...timeline]); // 맨 위에 추가되도록 역순 배치
+      };
+
+      const removeExperience = (id) => setTimeline(timeline.filter(item => item.id !== id));
+      const updateTimelineItem = (id, field, value) => setTimeline(timeline.map(item => item.id === id ? { ...item, [field]: value } : item));
+
+      return (
+        <div>
+          {/* 배포 모드(isExported)가 아닐 때만 컨트롤 바 표시 */}
+          {!isExported && (
+            <div className="fixed top-4 right-4 z-50 flex gap-3 shadow-lg rounded-full bg-white p-2 border border-gray-200">
+              <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-colors ${isEditing ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                {isEditing ? <Eye size={18} /> : <Edit3 size={18} />}
+                {isEditing ? "미리보기 모드" : "편집 모드"}
+              </button>
+              <button onClick={handleDownloadHTML} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition duration-300 flex items-center gap-2">
+                <Download size={18} /> 완성본 저장 (HTML)
+              </button>
+            </div>
+          )}
+
+          <header className="max-w-4xl mx-auto pt-20 pb-12 px-6 text-center">
+            {isEditing && !isExported ? (
+              <div className="space-y-4 max-w-2xl mx-auto">
+                <input value={header.name} onChange={(e) => setHeader({...header, name: e.target.value})} className="text-4xl md:text-5xl font-extrabold text-gray-900 text-center w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-blue-500 outline-none pb-2" placeholder="이름 또는 직무" />
+                <div className="flex justify-center gap-4 text-sm text-gray-500 mt-4">
+                  <input value={header.email} onChange={(e) => setHeader({...header, email: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="이메일" />
+                  <input value={header.phone} onChange={(e) => setHeader({...header, phone: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="연락처" />
+                </div>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">{header.name.replace('포트폴리오', '')} <span className="text-blue-600">포트폴리오</span></h1>
+                <div className="flex justify-center gap-4 text-sm text-gray-500">
+                  <span>📧 {header.email}</span>
+                  <span>📱 {header.phone}</span>
+                </div>
+              </>
+            )}
+          </header>
+
+          <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 relative">
+            <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-blue-200 transform md:-translate-x-1/2 rounded"></div>
+
+            <div className="space-y-12">
+              {timeline.map((item, index) => {
+                const isEven = index % 2 === 1; 
+                const isFirst = index === 0;
+                
+                if (isFirst) {
+                  return (
+                    <div key={item.id} className="relative flex flex-col items-center justify-center group mb-16 timeline-card">
+                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-10 mb-4 mt-4">
+                        <span className="text-white font-bold text-sm">Now</span>
+                      </div>
+                      
+                      <div onClick={() => isEditing && setActiveCardId(item.id)} className={`w-full max-w-3xl text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-all cursor-default ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'}`}>
+                        {isEditing && !isExported && (
+                          <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm"><Trash2 size={18} /></button>
+                        )}
+                        <div className="text-center mb-6">
+                          {isEditing && !isExported ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-indigo-300 outline-none text-center w-48" />
+                              <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className="text-3xl font-extrabold text-gray-900 bg-transparent border-b-2 border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                              <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className="text-gray-600 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-indigo-600 font-bold text-sm tracking-wider">{item.period}</span>
+                              <h3 className="text-3xl font-extrabold text-gray-900 mt-2 mb-1">{item.company}</h3>
+                              <p className="text-gray-600 text-sm font-medium">{item.project}</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-50 w-full mb-4 text-center">
+                          <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={true} alignCenter={true} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
+                        </div>
+                        {isEditing && !isExported ? (
+                          <div className="mt-6 flex flex-col items-center">
+                            <span className="text-xs text-gray-500 mb-1">태그 (쉼표로 구분)</span>
+                            <input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full max-w-lg px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-center" />
+                          </div>
+                        ) : (
+                          <div className="flex justify-center flex-wrap gap-2 mt-6">
+                            {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-4 py-1.5 bg-white text-indigo-600 border border-indigo-200 rounded-full text-sm font-semibold shadow-sm">{tag.trim()}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={item.id} className={`relative flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center justify-between group timeline-card`}>
+                    <div className="hidden md:block md:w-5/12"></div>
+                    <div className="absolute left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 z-10"><div className="w-2 h-2 bg-white rounded-full"></div></div>
+                    <div className={`w-full ml-16 md:ml-0 md:w-5/12 ${isEven ? 'text-left' : 'text-left md:text-right'}`}>
+                      <div onClick={() => isEditing && setActiveCardId(item.id)} className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-all cursor-default ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}>
+                        {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-red-400 hover:text-red-600 bg-gray-50 p-1.5 rounded-full`}><Trash2 size={16} /></button>}
+                        {isEditing && !isExported ? (
+                          <div className={`flex flex-col gap-2 mb-4 ${isEven ? '' : 'md:items-end'}`}>
+                            <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-blue-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-blue-300 outline-none w-40" />
+                            <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className={`text-2xl font-bold text-gray-900 bg-transparent border-b border-dashed border-gray-300 outline-none w-full ${isEven ? '' : 'md:text-right'}`} />
+                            <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className={`text-gray-500 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none w-full ${isEven ? '' : 'md:text-right'}`} />
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-blue-600 font-bold text-sm tracking-wider">{item.period}</span>
+                            <h3 className="text-2xl font-bold text-gray-900 mt-1 mb-1">{item.company}</h3>
+                            <p className="text-gray-500 text-sm font-medium mb-4">{item.project}</p>
+                          </>
+                        )}
+                        <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={false} alignRight={!isEven} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
+                        {isEditing && !isExported ? (
+                          <div className="mt-4"><input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full px-3 py-1 border rounded-lg outline-none text-sm bg-gray-50" placeholder="태그 (쉼표로 구분)" /></div>
+                        ) : (
+                          <div className={`flex flex-wrap gap-2 mt-4 ${!isEven ? 'md:justify-end' : ''}`}>
+                            {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">{tag.trim()}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {isEditing && !isExported && (
+              <div className="mt-16 flex justify-center">
+                <button onClick={addExperience} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-dashed border-blue-400 text-blue-600 rounded-xl hover:bg-blue-50 font-bold transition-colors shadow-sm">
+                  <Plus size={20} /> 새로운 경력 추가하기
+                </button>
+              </div>
+            )}
+          </section>
+
+          {lightbox.isOpen && (
+            <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={() => setLightbox({ ...lightbox, isOpen: false })}>
+              <button className="absolute top-4 right-4 text-white hover:text-gray-300 z-[101]" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, isOpen: false }); }}><X size={36} /></button>
+              {lightbox.images.length > 1 && (
+                <button className="absolute left-4 md:left-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex - 1 + lightbox.images.length) % lightbox.images.length }); }}><ChevronLeft size={48} /></button>
+              )}
+              <div className="relative flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]">
+                <img src={lightbox.images[lightbox.currentIndex]?.src || lightbox.images[lightbox.currentIndex]} alt="Enlarged view" className="max-w-full max-h-[80vh] object-contain rounded-md shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                {lightbox.images[lightbox.currentIndex]?.link && (
+                  <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+                    <a href={lightbox.images[lightbox.currentIndex].link} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-full font-bold shadow-lg flex items-center gap-2">
+                      <LinkIcon size={18} /> 연결된 링크로 이동
+                    </a>
+                  </div>
+                )}
+                <div className="absolute -bottom-10 left-0 right-0 text-center text-white/70 text-sm font-medium">{lightbox.currentIndex + 1} / {lightbox.images.length}</div>
+              </div>
+              {lightbox.images.length > 1 && (
+                <button className="absolute right-4 md:right-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex + 1) % lightbox.images.length }); }}><ChevronRight size={48} /></button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- 갤러리 컴포넌트 ---
+    function ImageGallery({ images, isEditing, isLarge, alignRight, alignCenter, onUpdate, openLightbox }) {
+      const dragItem = useRef();
+      const dragOverItem = useRef();
+
+      const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        const newImages = [...images];
+        let loadedCount = 0;
+        files.forEach(file => {
+          if (!file.type.startsWith('image/')) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            newImages.push({ id: Date.now() + Math.random(), src: ev.target.result, size: isLarge ? 160 : 112, link: "" });
+            loadedCount++;
+            if (loadedCount === files.length) onUpdate(newImages);
+          };
+          reader.readAsDataURL(file);
+        });
+        e.target.value = '';
+      };
+
+      const handleDragStart = (e, index) => { dragItem.current = index; };
+      const handleDragEnter = (e, index) => { dragOverItem.current = index; };
+      const handleDragEnd = () => {
+        if (dragItem.current === undefined || dragOverItem.current === undefined) return;
+        const newImages = [...images];
+        const draggedImg = newImages.splice(dragItem.current, 1)[0];
+        newImages.splice(dragOverItem.current, 0, draggedImg);
+        dragItem.current = null;
+        dragOverItem.current = null;
+        onUpdate(newImages);
+      };
+
+      const removeImage = (indexToRemove) => onUpdate(images.filter((_, idx) => idx !== indexToRemove));
+      
+      const updateImageSize = (index, delta) => {
+        const newImages = [...images];
+        const currentSize = newImages[index].size || (isLarge ? 160 : 112);
+        newImages[index] = { ...newImages[index], size: Math.max(60, Math.min(400, currentSize + delta)) };
+        onUpdate(newImages);
+      };
+
+      const updateImageLink = (index) => {
+        const newImages = [...images];
+        let url = window.prompt("이미지에 연결할 웹사이트 주소(URL)를 입력하세요.\n※ 빈 칸으로 등록하면 링크가 삭제됩니다.", newImages[index].link || "");
+        if (url !== null) {
+          let finalUrl = url.trim();
+          if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) finalUrl = 'https://' + finalUrl;
+          newImages[index] = { ...newImages[index], link: finalUrl };
+          onUpdate(newImages);
+        }
+      };
+
+      if (!isEditing && images.length === 0) return null;
+
+      return (
+        <div className={`w-full mb-4 ${alignCenter ? 'text-center' : (alignRight ? 'md:text-right' : 'text-left')}`}>
+          {isEditing && (
+            <div className={`flex flex-col mb-2 gap-2 ${alignCenter ? 'items-center' : (alignRight ? 'md:items-end' : 'items-start')}`}>
+              <p className="text-xs text-gray-500 font-semibold flex items-center gap-1">
+                <ImageIcon size={14} /> 카드를 클릭한 뒤 Ctrl+V 로 이미지를 붙여넣을 수 있습니다.
+              </p>
+            </div>
+          )}
+          
+          <div className={`flex gap-3 overflow-x-auto py-2 items-center ${alignCenter ? 'justify-center' : (alignRight ? 'md:flex-row-reverse' : 'justify-start')} hide-scrollbar`}>
+            {images.map((imgObj, index) => {
+              const src = imgObj.src || imgObj;
+              const size = imgObj.size || (isLarge ? 160 : 112);
+              const link = imgObj.link || "";
+              const inlineStyle = { width: `${size}px`, height: `${size}px`, minWidth: `${size}px` };
+
+              return (
+                <div key={imgObj.id || index} draggable={isEditing} style={inlineStyle} onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onClick={() => !isEditing && openLightbox && openLightbox(images, index)} className={`shrink-0 relative rounded-lg overflow-hidden group shadow-sm border border-gray-200 transition-all ${isEditing ? 'cursor-grab active:cursor-grabbing hover:border-blue-400' : 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-300'}`}>
+                  <img src={src} alt={`Upload ${index}`} className="w-full h-full object-cover pointer-events-none" />
+                  {!isEditing && link && <div className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-md z-10 pointer-events-none shadow-sm backdrop-blur-sm"><LinkIcon size={12} /></div>}
+                  {isEditing && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={14} /></button>
+                      <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" onPointerDown={(e) => e.stopPropagation()}>
+                        <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, -20); }} className="bg-black/70 text-white p-1.5 rounded-md hover:bg-blue-500 transition-colors"><ZoomOut size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className={`p-1.5 rounded-md transition-colors ${link ? 'bg-blue-600 text-white' : 'bg-black/70 text-white hover:bg-blue-500'}`}><LinkIcon size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, 20); }} className="bg-black/70 text-white p-1.5 rounded-md hover:bg-blue-500 transition-colors"><ZoomIn size={14} /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            {isEditing && (
+              <label style={{ width: isLarge ? '160px' : '112px', height: isLarge ? '160px' : '112px', minWidth: isLarge ? '160px' : '112px' }} className="shrink-0 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-gray-400 hover:text-blue-500">
+                <Plus size={24} />
+                <span className="text-xs mt-1 font-medium">사진 추가</span>
+                <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
+              </label>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -24,7 +24,6 @@
   <!-- React 앱이 렌더링될 루트 -->
   <div id="root"></div>
 
-  <!-- data-type="module"을 추가하여 Firebase ES Module을 사용할 수 있게 합니다 -->
   <script type="text/babel" data-type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -45,19 +44,19 @@
     const Plus = (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconBase>;
     const ChevronLeft = (p) => <IconBase {...p}><polyline points="15 18 9 12 15 6"/></IconBase>;
     const ChevronRight = (p) => <IconBase {...p}><polyline points="9 18 15 12 9 6"/></IconBase>;
-    const ZoomIn = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
-    const ZoomOut = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
     const LinkIcon = (p) => <IconBase {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></IconBase>;
     const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
     const CheckCircle = (p) => <IconBase {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
+    const RotateCcw = (p) => <IconBase {...p}><polyline points="3 2 3 14 15 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L3 14"/></IconBase>;
+    const ArrowDownRight = (p) => <IconBase {...p}><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></IconBase>;
+    const ArrowDownLeft = (p) => <IconBase {...p}><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></IconBase>;
 
     // --- 초기 데이터 세팅 ---
     // /* DATA_START */
     const initialHeader = {
       name: "게임 기획자",
       email: "GUPABAL@kakao.com",
-      phone: "010-4567-5368",
-      title: "탄탄한 경제 구조와 전투 밸런스로 게임의 재미를 설계합니다"
+      phone: "010-4567-5368"
     };
 
     const initialTimeline = [
@@ -73,36 +72,39 @@
 
     const isExported = false; // 배포용 파일 변환 시 true로 치환됨
 
-    // --- Firebase Setup ---
-    let db = null;
-    let auth = null;
-    let appId = 'default-app-id';
+    // --- 100% 로컬 데이터 전용 로딩 (서버 연결 완전 제거) ---
+    const loadLocalData = () => {
+      if (isExported) return { header: initialHeader, timeline: initialTimeline };
+      try {
+        const localData = localStorage.getItem('portfolioLocalData');
+        if (localData) {
+          return JSON.parse(localData);
+        }
+      } catch(e) { console.error("로컬 데이터를 불러오지 못했습니다.", e); }
+      return { header: initialHeader, timeline: initialTimeline };
+    };
 
-    if (!isExported && typeof __firebase_config !== 'undefined') {
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    }
-
-    // --- 이미지 압축 (Firestore 용량 제한 방지용) ---
-    const resizeImage = (dataUrl, maxWidth = 900) => {
+    // --- 이미지 압축 및 비율 계산 (100% 로컬) ---
+    const resizeImage = (dataUrl, maxWidth = 1200) => {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
+          const aspectRatio = img.width / img.height;
           let width = img.width;
           let height = img.height;
           if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
             width = maxWidth;
+            height = Math.round(width / aspectRatio);
           }
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8)); // 80% 화질의 JPEG로 압축
+          resolve({
+            url: canvas.toDataURL('image/jpeg', 0.85),
+            aspectRatio: aspectRatio
+          });
         };
         img.src = dataUrl;
       });
@@ -110,86 +112,108 @@
 
     // --- 메인 App 컴포넌트 ---
     function App() {
+      const initData = loadLocalData();
       const [isEditing, setIsEditing] = useState(true);
-      const [header, setHeader] = useState(initialHeader);
-      const [timeline, setTimeline] = useState(initialTimeline);
+      const [header, setHeader] = useState(initData.header);
+      const [timeline, setTimeline] = useState(initData.timeline);
       const [lightbox, setLightbox] = useState({ isOpen: false, images: [], currentIndex: 0 });
       const [activeCardId, setActiveCardId] = useState(null);
       const [toastMsg, setToastMsg] = useState('');
+      const [isSaved, setIsSaved] = useState(true);
 
-      // 클라우드 동기화 상태 관리
-      const [user, setUser] = useState(null);
-      const [initialLoadDone, setInitialLoadDone] = useState(isExported);
-      const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-      const isFirstRender = useRef(true);
-
-      // 1. Auth 초기화
-      useEffect(() => {
-        if (isExported || !auth) return;
-        const initAuth = async () => {
-          try {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-              await signInWithCustomToken(auth, __initial_auth_token);
+      // --- 여러 속성을 동시에 업데이트하여 리액트 버그를 방지하는 함수 ---
+      const updateTimelineItem = (id, fieldOrUpdates, value) => {
+        setTimeline(prev => prev.map(item => {
+          if (item.id === id) {
+            if (typeof fieldOrUpdates === 'string') {
+              return { ...item, [fieldOrUpdates]: value };
             } else {
-              await signInAnonymously(auth);
+              return { ...item, ...fieldOrUpdates }; // 다중 필드 동시 업데이트
             }
-          } catch (error) {
-            console.error("Auth error", error);
           }
+          return item;
+        }));
+      };
+
+      const removeExperience = (id) => setTimeline(prev => prev.filter(item => item.id !== id));
+
+      const addExperience = () => {
+        const newItem = {
+          id: Date.now(),
+          period: "YYYY.MM ~ YYYY.MM",
+          company: "새로운 회사 (직급)",
+          project: "대표 게임: 프로젝트명 | 엔진: 유니티",
+          tags: "태그1, 태그2",
+          images: [],
+          cardWidth: null,
+          cardHeight: null
         };
-        initAuth();
+        setTimeline(prev => [newItem, ...prev]); 
+      };
 
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          setUser(currentUser);
-        });
-        return () => unsubscribe();
-      }, []);
+      // --- 카드 크기 조절 (무제한 드래그 앤 드롭) ---
+      const [resizingCardIdx, setResizingCardIdx] = useState(null);
+      const [cardResizeStart, setCardResizeStart] = useState({x: 0, y: 0, w: 0, h: 0, isCentered: false});
+      const [cardResizeDir, setCardResizeDir] = useState(null); // 'e', 'w', 's', 'se', 'sw'
 
-      // 2. 초기 데이터 불러오기
+      const handleCardResizeStart = (e, id, dir, isCentered = false) => {
+        e.stopPropagation(); 
+        e.preventDefault();
+        const rect = e.currentTarget.parentElement.getBoundingClientRect();
+        setResizingCardIdx(id);
+        setCardResizeDir(dir);
+        setCardResizeStart({ x: e.clientX, y: e.clientY, w: rect.width, h: rect.height, isCentered });
+      };
+
       useEffect(() => {
-        if (isExported || !user || !db) return;
-        
-        const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioData', 'main');
-        const unsubscribe = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.header) setHeader(data.header);
-            if (data.timeline) setTimeline(data.timeline);
+        if (resizingCardIdx === null) return;
+        const handleMove = (e) => {
+          let deltaX = e.clientX - cardResizeStart.x;
+          const deltaY = e.clientY - cardResizeStart.y;
+          
+          // 가운데 정렬된 카드일 경우, 양쪽으로 늘어나기 때문에 마우스 커서를 따라잡기 위해 2배속을 줍니다.
+          if (cardResizeStart.isCentered) {
+            deltaX *= 2;
           }
-          setInitialLoadDone(true);
-        }, (err) => {
-          console.error("Snapshot error:", err);
-          setInitialLoadDone(true);
-        });
 
-        return () => unsubscribe();
-      }, [user]);
+          let newW = cardResizeStart.w;
+          let newH = cardResizeStart.h;
 
-      // 3. 변경사항 자동 저장 (Debounce)
-      useEffect(() => {
-        if (isExported || !initialLoadDone || !user || !db) return;
-        
-        // 첫 렌더링 시에는 덮어쓰기 방지
-        if (isFirstRender.current) {
-          isFirstRender.current = false;
-          return;
+          // 방향에 따른 가로/세로 무제한 확장
+          if (cardResizeDir === 'e' || cardResizeDir === 'se') {
+            newW = Math.max(300, cardResizeStart.w + deltaX);
+          }
+          if (cardResizeDir === 'w' || cardResizeDir === 'sw') {
+            newW = Math.max(300, cardResizeStart.w - deltaX);
+          }
+          if (cardResizeDir === 's' || cardResizeDir === 'se' || cardResizeDir === 'sw') {
+            newH = Math.max(200, cardResizeStart.h + deltaY);
+          }
+          
+          // ✨ 한번에 2가지 상태(가로, 세로)를 업데이트하여 덮어쓰기(Batching) 버그 해결
+          updateTimelineItem(resizingCardIdx, { cardWidth: newW, cardHeight: newH });
+        };
+        const handleUp = () => { setResizingCardIdx(null); setCardResizeDir(null); };
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        return () => {
+          window.removeEventListener('pointermove', handleMove);
+          window.removeEventListener('pointerup', handleUp);
         }
+      }, [resizingCardIdx, cardResizeStart, cardResizeDir]);
 
-        setIsCloudSyncing(true);
-        const timer = setTimeout(async () => {
+      // --- 로컬스토리지 자동 저장 (서버 통신 없음) ---
+      useEffect(() => {
+        if (isExported) return;
+        setIsSaved(false);
+        const timer = setTimeout(() => {
           try {
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioData', 'main');
-            await setDoc(docRef, { header, timeline }, { merge: true });
-          } catch (err) {
-            console.error("Save error:", err);
-          } finally {
-            setIsCloudSyncing(false);
-          }
-        }, 1500); // 1.5초 대기 후 저장
-
+            localStorage.setItem('portfolioLocalData', JSON.stringify({ header, timeline }));
+            setIsSaved(true);
+          } catch(e) { console.error("저장 실패", e); }
+        }, 1000); // 1초 뒤 자동 저장
         return () => clearTimeout(timer);
-      }, [header, timeline, initialLoadDone, user]);
-
+      }, [header, timeline]);
 
       // 글로벌 클립보드 붙여넣기(Ctrl+V)
       useEffect(() => {
@@ -218,18 +242,24 @@
           const activeItem = timeline[activeItemIndex];
           const isLarge = activeItemIndex === 0;
 
-          // 압축을 위한 프로미스 배열 처리
           const processedImages = await Promise.all(files.map(file => {
             return new Promise((resolve) => {
               const reader = new FileReader();
               reader.onload = async (ev) => {
-                const compressedSrc = await resizeImage(ev.target.result);
+                const { url, aspectRatio } = await resizeImage(ev.target.result);
+                
+                // 가로/세로 독립 크기 지원 (초기화)
+                const initW = isLarge ? 240 : 160;
+                const initH = initW / aspectRatio;
+
                 resolve({
                   id: Date.now() + Math.random(),
-                  src: compressedSrc,
-                  size: activeItem.imageSize || (isLarge ? 160 : 112),
+                  src: url,
+                  aspectRatio: aspectRatio,
+                  width: initW,
+                  height: initH,
                   link: "",
-                  comment: ""
+                  memos: [] 
                 });
               };
               reader.readAsDataURL(file);
@@ -241,8 +271,22 @@
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
-      }, [isEditing, activeCardId, timeline, isExported]);
+      }, [isEditing, activeCardId, timeline]);
 
+      // 🌟 초기화 기능 🌟
+      const handleReset = () => {
+        if (window.confirm("경고: 모든 변경사항과 추가한 사진이 삭제되고 빈 화면으로 초기화됩니다.\n정말 초기화하시겠습니까?")) {
+          setHeader({
+            name: "게임 기획자",
+            email: "GUPABAL@kakao.com",
+            phone: "010-4567-5368"
+          });
+          setTimeline([]); // 빈 배열로 완전히 초기화
+          localStorage.removeItem('portfolioLocalData'); // 로컬 데이터 삭제
+          setToastMsg("포트폴리오가 빈 화면으로 초기화되었습니다.");
+          setTimeout(() => setToastMsg(''), 4000);
+        }
+      };
 
       // 🌟 완성본(읽기전용 HTML) 생성 및 다운로드 🌟
       const handleDownloadHTML = () => {
@@ -277,7 +321,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
   <div id="root"></div>
-  <script type="text/babel" data-type="module">
+  <script type="text/babel">
 ${code}
   ${scriptClose}
 </body>
@@ -295,35 +339,8 @@ ${code}
         setTimeout(() => setToastMsg(''), 4000);
       };
 
-      const addExperience = () => {
-        const newItem = {
-          id: Date.now(),
-          period: "YYYY.MM ~ YYYY.MM",
-          company: "새로운 회사 (직급)",
-          project: "대표 게임: 프로젝트명 | 엔진: 유니티",
-          tags: "태그1, 태그2",
-          images: [],
-          imageSize: 112
-        };
-        setTimeline([newItem, ...timeline]); 
-      };
-
-      const removeExperience = (id) => setTimeline(timeline.filter(item => item.id !== id));
-      const updateTimelineItem = (id, field, value) => setTimeline(timeline.map(item => item.id === id ? { ...item, [field]: value } : item));
-
-      // 클라우드 데이터를 불러오기 전 로딩 화면
-      if (!initialLoadDone && !isExported) {
-        return (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
-            <svg className="animate-spin h-10 w-10 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <p className="font-semibold text-lg">클라우드에서 포트폴리오를 안전하게 불러오는 중입니다...</p>
-          </div>
-        );
-      }
-
       return (
         <div>
-          {/* 토스트 메시지 (알림) */}
           {toastMsg && (
             <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-2 animate-bounce">
               <CheckCircle size={18} className="text-green-400" />
@@ -331,13 +348,10 @@ ${code}
             </div>
           )}
 
-          {/* 배포 모드(isExported)가 아닐 때만 컨트롤 바 표시 */}
           {!isExported && (
             <div className="fixed top-4 right-4 z-50 flex items-center gap-3 shadow-lg rounded-full bg-white p-2 border border-gray-200">
-              
-              {/* ☁️ 클라우드 저장 상태 표시 */}
               <div className="hidden sm:flex items-center ml-2 mr-1">
-                {isCloudSyncing ? (
+                {!isSaved ? (
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
                     <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     자동 저장 중...
@@ -345,10 +359,22 @@ ${code}
                 ) : (
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100 transition-all">
                     <CheckCircle size={14} />
-                    클라우드 저장됨
+                    로컬 저장됨
                   </span>
                 )}
               </div>
+
+              <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
+              {/* 🌟 초기화 버튼 🌟 */}
+              <button 
+                onClick={handleReset} 
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold transition-colors text-red-600 hover:bg-red-50"
+                title="모든 변경사항을 삭제하고 처음 상태로 되돌립니다."
+              >
+                <RotateCcw size={18} />
+                <span className="hidden sm:inline text-sm">초기화</span>
+              </button>
 
               <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
 
@@ -364,44 +390,52 @@ ${code}
 
           <header className="max-w-4xl mx-auto pt-20 pb-12 px-6 text-center">
             {isEditing && !isExported ? (
-              <div className="space-y-4 max-w-2xl mx-auto">
+              <div className="space-y-4 max-w-2xl mx-auto border-b border-dashed border-gray-200 pb-8">
                 <input value={header.name} onChange={(e) => setHeader({...header, name: e.target.value})} className="text-4xl md:text-5xl font-extrabold text-gray-900 text-center w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-blue-500 outline-none pb-2" placeholder="이름 또는 직무" />
-                <input value={header.title} onChange={(e) => setHeader({...header, title: e.target.value})} className="text-xl text-gray-600 font-medium text-center w-full bg-transparent border-b border-dashed border-gray-300 focus:border-blue-500 outline-none pb-1" placeholder="한 줄 소개를 입력하세요" />
                 <div className="flex justify-center gap-4 text-sm text-gray-500 mt-4">
                   <input value={header.email} onChange={(e) => setHeader({...header, email: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="이메일" />
                   <input value={header.phone} onChange={(e) => setHeader({...header, phone: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="연락처" />
                 </div>
               </div>
             ) : (
-              <>
+              <div className="border-b border-dashed border-gray-200 pb-8">
                 <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">{header.name.replace('포트폴리오', '')} <span className="text-blue-600">포트폴리오</span></h1>
-                <p className="text-xl text-gray-600 font-medium mb-6">"{header.title}"</p>
                 <div className="flex justify-center gap-4 text-sm text-gray-500">
                   <span>📧 {header.email}</span>
                   <span>📱 {header.phone}</span>
                 </div>
-              </>
+              </div>
             )}
           </header>
 
-          <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 relative">
-            <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-blue-200 transform md:-translate-x-1/2 rounded"></div>
+          <section className="w-full px-4 sm:px-8 md:px-16 py-4 relative">
+            <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-blue-200 transform md:-translate-x-1/2 rounded z-0"></div>
 
-            <div className="space-y-12">
+            <div className="space-y-12 relative z-10 w-full flex flex-col items-center">
               {timeline.map((item, index) => {
                 const isEven = index % 2 === 1; 
                 const isFirst = index === 0;
                 
                 if (isFirst) {
                   return (
-                    <div key={item.id} className="relative flex flex-col items-center justify-center group mb-16 timeline-card">
-                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-10 mb-4 mt-4">
+                    <div key={item.id} className="relative flex flex-col items-center justify-center group mb-16 timeline-card w-full mt-8">
+                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-10 mb-4 shrink-0">
                         <span className="text-white font-bold text-sm">Now</span>
                       </div>
                       
-                      <div onClick={() => isEditing && setActiveCardId(item.id)} className={`w-full max-w-3xl text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-all cursor-default ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'}`}>
+                      {/* 가로세로 제한 완전히 해제된 중앙 카드 */}
+                      <div 
+                        onClick={() => isEditing && setActiveCardId(item.id)} 
+                        className={`text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-colors cursor-default shrink-0 ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'} ${item.cardWidth ? '' : 'w-full max-w-3xl'}`}
+                        style={{
+                          width: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                          minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                          maxWidth: item.cardWidth ? 'none' : undefined,
+                          minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto'
+                        }}
+                      >
                         {isEditing && !isExported && (
-                          <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm"><Trash2 size={18} /></button>
+                          <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm z-30"><Trash2 size={18} /></button>
                         )}
                         <div className="text-center mb-6">
                           {isEditing && !isExported ? (
@@ -431,18 +465,51 @@ ${code}
                             {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-4 py-1.5 bg-white text-indigo-600 border border-indigo-200 rounded-full text-sm font-semibold shadow-sm">{tag.trim()}</span>)}
                           </div>
                         )}
+                        
+                        {/* 🛠 중앙 포트폴리오 카드 크기 조절 핸들 (가로/세로 독립, 마우스 2배속 적용) */}
+                        {isEditing && !isExported && (
+                          <>
+                            <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-r-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', true)}></div>
+                            <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-l-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', true)}></div>
+                            <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-b-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', true)}></div>
+                            <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-indigo-300 hover:text-indigo-600 rounded-br-3xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', true)} title="드래그하여 크기 조절">
+                              <ArrowDownRight size={18} />
+                            </div>
+                            <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-indigo-300 hover:text-indigo-600 rounded-bl-3xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', true)} title="드래그하여 크기 조절">
+                              <ArrowDownLeft size={18} />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
                 }
 
+                // 일반 카드 (좌/우 배치)
                 return (
-                  <div key={item.id} className={`relative flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center justify-between group timeline-card`}>
-                    <div className="hidden md:block md:w-5/12"></div>
-                    <div className="absolute left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 z-10"><div className="w-2 h-2 bg-white rounded-full"></div></div>
-                    <div className={`w-full ml-16 md:ml-0 md:w-5/12 ${isEven ? 'text-left' : 'text-left md:text-right'}`}>
-                      <div onClick={() => isEditing && setActiveCardId(item.id)} className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-all cursor-default ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}>
-                        {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-red-400 hover:text-red-600 bg-gray-50 p-1.5 rounded-full`}><Trash2 size={16} /></button>}
+                  <div key={item.id} className={`relative flex flex-col md:flex-row w-full group timeline-card mb-12 ${isEven ? '' : 'md:flex-row-reverse'}`}>
+                    <div className="absolute left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 z-10 shrink-0">
+                       <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                    <div className="hidden md:block md:w-1/2 shrink-0"></div>
+                    
+                    {/* 일반 카드 외곽 래퍼 (크기 조정 주체) */}
+                    <div 
+                      className={`flex flex-col shrink-0 transition-colors ${isEven ? 'items-start pl-16 md:pl-8 lg:pl-12' : 'items-start md:items-end pl-16 md:pl-0 md:pr-8 lg:pr-12'} ${item.cardWidth ? '' : 'w-full md:w-1/2'}`}
+                      style={{ 
+                        width: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                        minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                        maxWidth: item.cardWidth ? 'none' : undefined
+                      }}
+                    >
+                      <div 
+                        onClick={() => isEditing && setActiveCardId(item.id)} 
+                        className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-colors cursor-default shrink-0 w-full ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}
+                        style={{
+                          minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto'
+                        }}
+                      >
+                        {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-red-400 hover:text-red-600 bg-gray-50 p-1.5 rounded-full z-30`}><Trash2 size={16} /></button>}
                         {isEditing && !isExported ? (
                           <div className={`flex flex-col gap-2 mb-4 ${isEven ? '' : 'md:items-end'}`}>
                             <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-blue-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-blue-300 outline-none w-40" />
@@ -464,6 +531,31 @@ ${code}
                             {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">{tag.trim()}</span>)}
                           </div>
                         )}
+                        
+                        {/* 🛠 바깥 포트폴리오 카드 크기 조절 핸들 (가로/세로 독립 확장 무제한) */}
+                        {isEditing && !isExported && (
+                          <>
+                            {isEven ? (
+                              /* 오른쪽 배치 카드: 우측, 하단 핸들 제공 */
+                              <>
+                                <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-400/20 transition-colors rounded-r-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-gray-300 hover:text-blue-600 rounded-br-2xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', false)} title="드래그하여 크기 조절">
+                                  <ArrowDownRight size={18} />
+                                </div>
+                              </>
+                            ) : (
+                              /* 왼쪽 배치 카드: 좌측, 하단 핸들 제공 */
+                              <>
+                                <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-400/20 transition-colors rounded-l-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-gray-300 hover:text-blue-600 rounded-bl-2xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', false)} title="드래그하여 크기 조절">
+                                  <ArrowDownLeft size={18} />
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -472,7 +564,7 @@ ${code}
             </div>
 
             {isEditing && !isExported && (
-              <div className="mt-16 flex justify-center">
+              <div className={`flex justify-center relative z-10 ${timeline.length === 0 ? 'mt-8 mb-32' : 'mt-16'}`}>
                 <button onClick={addExperience} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-dashed border-blue-400 text-blue-600 rounded-xl hover:bg-blue-50 font-bold transition-colors shadow-sm">
                   <Plus size={20} /> 새로운 경력 추가하기
                 </button>
@@ -490,16 +582,17 @@ ${code}
               )}
               
               <div className="relative flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]">
-                <img src={lightbox.images[lightbox.currentIndex]?.src || lightbox.images[lightbox.currentIndex]} alt="Enlarged view" className="max-w-full max-h-[70vh] object-contain rounded-md shadow-2xl" onClick={(e) => e.stopPropagation()} />
-                
-                {/* 💬 라이트박스 코멘트 노출 영역 */}
-                {lightbox.images[lightbox.currentIndex]?.comment && (
-                  <div className="mt-4 bg-black/60 px-6 py-3 rounded-xl border border-gray-700/50 backdrop-blur-md max-w-2xl text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
-                    <p className="text-white text-base md:text-lg font-medium leading-relaxed">
-                      {lightbox.images[lightbox.currentIndex].comment}
-                    </p>
-                  </div>
-                )}
+                <div className="relative inline-block">
+                  <img src={lightbox.images[lightbox.currentIndex]?.src} alt="Enlarged view" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-md" onClick={(e) => e.stopPropagation()} />
+                  
+                  {/* 라이트박스에도 둥둥 떠다니는 메모 동일 위치 렌더링 */}
+                  {(lightbox.images[lightbox.currentIndex]?.memos || []).map(memo => (
+                    <div key={memo.id} className="absolute bg-white/90 text-gray-900 font-bold text-xs md:text-sm px-3 py-2 rounded-lg shadow-lg whitespace-pre-wrap text-center max-w-[90%]"
+                         style={{ left: `${memo.x}%`, top: `${memo.y}%`, transform: 'translate(-50%, -50%)', zIndex: 20 }}>
+                      {memo.text}
+                    </div>
+                  ))}
+                </div>
 
                 {lightbox.images[lightbox.currentIndex]?.link && (
                   <div className="mt-4" onClick={(e) => e.stopPropagation()}>
@@ -525,6 +618,19 @@ ${code}
       const dragItem = useRef();
       const dragOverItem = useRef();
 
+      // 마우스 드래그 크기 조절 상태
+      const [resizingIdx, setResizingIdx] = useState(null);
+      const [resizeStartX, setResizeStartX] = useState(0);
+      const [resizeStartY, setResizeStartY] = useState(0);
+      const [resizeStartSize, setResizeStartSize] = useState({w: 0, h: 0});
+      const [resizeDir, setResizeDir] = useState(null); // 'e', 'w', 's', 'se', 'sw'
+
+      // 메모 드래그 이동 상태
+      const [draggingMemo, setDraggingMemo] = useState(null); // { imgIndex, memoId }
+      const [memoStartX, setMemoStartX] = useState(0);
+      const [memoStartY, setMemoStartY] = useState(0);
+      const [memoStartPos, setMemoStartPos] = useState({x: 50, y: 50});
+
       const handleFileChange = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
@@ -535,8 +641,20 @@ ${code}
             if (!file.type.startsWith('image/')) return resolve(null);
             const reader = new FileReader();
             reader.onload = async (ev) => {
-              const compressedSrc = await resizeImage(ev.target.result);
-              resolve({ id: Date.now() + Math.random(), src: compressedSrc, size: isLarge ? 160 : 112, link: "", comment: "" });
+              const { url, aspectRatio } = await resizeImage(ev.target.result);
+              
+              const initW = isLarge ? 240 : 160;
+              const initH = initW / aspectRatio;
+
+              resolve({ 
+                id: Date.now() + Math.random(), 
+                src: url, 
+                aspectRatio: aspectRatio, 
+                width: initW,
+                height: initH,
+                link: "", 
+                memos: [] 
+              });
             };
             reader.readAsDataURL(file);
           });
@@ -547,7 +665,10 @@ ${code}
         e.target.value = '';
       };
 
-      const handleDragStart = (e, index) => { dragItem.current = index; };
+      const handleHTML5DragStart = (e, index) => {
+        if (resizingIdx !== null || draggingMemo !== null) { e.preventDefault(); return; }
+        dragItem.current = index;
+      };
       const handleDragEnter = (e, index) => { dragOverItem.current = index; };
       const handleDragEnd = () => {
         if (dragItem.current === undefined || dragOverItem.current === undefined) return;
@@ -561,12 +682,96 @@ ${code}
 
       const removeImage = (indexToRemove) => onUpdate(images.filter((_, idx) => idx !== indexToRemove));
       
-      const updateImageSize = (index, delta) => {
-        const newImages = [...images];
-        const currentSize = newImages[index].size || (isLarge ? 160 : 112);
-        newImages[index] = { ...newImages[index], size: Math.max(60, Math.min(400, currentSize + delta)) };
-        onUpdate(newImages);
+      // 🛠 마우스 드래그 이미지 자유 크기 조절 로직
+      const handleCustomResizeStart = (e, index, currentW, currentH, dir) => {
+        e.stopPropagation(); e.preventDefault();
+        setResizingIdx(index);
+        setResizeDir(dir);
+        setResizeStartX(e.clientX);
+        setResizeStartY(e.clientY);
+        setResizeStartSize({ w: currentW, h: currentH });
       };
+
+      useEffect(() => {
+        if (resizingIdx === null) return;
+        const handleMove = (e) => {
+          let deltaX = e.clientX - resizeStartX; 
+          const deltaY = e.clientY - resizeStartY;
+
+          // 중앙 정렬된 이미지의 양방향 확장을 위해 보정 (마우스가 가장자리를 따라가도록)
+          if (alignCenter) {
+            deltaX *= 2;
+          }
+          
+          let newW = resizeStartSize.w;
+          let newH = resizeStartSize.h;
+          
+          if (resizeDir === 'e' || resizeDir === 'se') {
+            newW = Math.max(60, resizeStartSize.w + deltaX);
+          }
+          if (resizeDir === 'w' || resizeDir === 'sw') {
+            newW = Math.max(60, resizeStartSize.w - deltaX);
+          }
+          if (resizeDir === 's' || resizeDir === 'se' || resizeDir === 'sw') {
+            newH = Math.max(60, resizeStartSize.h + deltaY);
+          }
+
+          const newImages = [...images];
+          newImages[resizingIdx] = { 
+            ...newImages[resizingIdx], 
+            width: newW,
+            height: newH
+          };
+          onUpdate(newImages);
+        };
+        const handleUp = () => { setResizingIdx(null); setResizeDir(null); };
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        return () => {
+          window.removeEventListener('pointermove', handleMove);
+          window.removeEventListener('pointerup', handleUp);
+        }
+      }, [resizingIdx, resizeStartX, resizeStartY, resizeStartSize, resizeDir, alignCenter]);
+
+      // 🛠 메모 박스 드래그 이동 로직
+      const handleMemoDragStart = (e, imgIndex, memoId, x, y) => {
+        e.stopPropagation(); e.preventDefault();
+        setDraggingMemo({ imgIndex, memoId });
+        setMemoStartX(e.clientX);
+        setMemoStartY(e.clientY);
+        setMemoStartPos({ x: x || 50, y: y || 50 });
+      };
+
+      useEffect(() => {
+        if (draggingMemo === null) return;
+        const handleMove = (e) => {
+          const imgElement = document.getElementById(`img-container-${draggingMemo.imgIndex}`);
+          if (!imgElement) return;
+          const rect = imgElement.getBoundingClientRect();
+
+          const deltaX = ((e.clientX - memoStartX) / rect.width) * 100;
+          const deltaY = ((e.clientY - memoStartY) / rect.height) * 100;
+
+          const newX = Math.max(0, Math.min(100, memoStartPos.x + deltaX));
+          const newY = Math.max(0, Math.min(100, memoStartPos.y + deltaY));
+
+          const newImages = [...images];
+          const memos = newImages[draggingMemo.imgIndex].memos || [];
+          newImages[draggingMemo.imgIndex] = {
+            ...newImages[draggingMemo.imgIndex],
+            memos: memos.map(m => m.id === draggingMemo.memoId ? { ...m, x: newX, y: newY } : m)
+          };
+          onUpdate(newImages);
+        };
+        const handleUp = () => setDraggingMemo(null);
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        return () => {
+          window.removeEventListener('pointermove', handleMove);
+          window.removeEventListener('pointerup', handleUp);
+        }
+      }, [draggingMemo, memoStartX, memoStartY, memoStartPos]);
+
 
       const updateImageLink = (index) => {
         const newImages = [...images];
@@ -579,76 +784,189 @@ ${code}
         }
       };
 
-      // 💬 코멘트 수정 기능 추가
-      const updateImageComment = (index) => {
-        const newImages = [...images];
-        const currentComment = newImages[index].comment || "";
-        let text = window.prompt("이미지에 대한 코멘트(설명)를 입력하세요.\n※ 빈 칸으로 등록하면 삭제됩니다.", currentComment);
-        if (text !== null) {
-          newImages[index] = { ...newImages[index], comment: text.trim() };
+      // 💬 다중 메모 박스 추가
+      const addImageMemo = (index) => {
+        const text = window.prompt("사진에 남길 메모 내용을 입력하세요.");
+        if (text && text.trim()) {
+          const newImages = [...images];
+          const memos = newImages[index].memos || [];
+          
+          newImages[index] = { 
+            ...newImages[index], 
+            memos: [...memos, { id: Date.now(), text: text.trim(), x: 50, y: 50 }] 
+          };
           onUpdate(newImages);
         }
       };
 
+      // 💬 개별 메모 수정
+      const editImageMemo = (imgIndex, memoId) => {
+        const newImages = [...images];
+        const memos = [...(newImages[imgIndex].memos || [])];
+        const memoIndex = memos.findIndex(m => m.id === memoId);
+        if (memoIndex === -1) return;
+
+        const currentText = memos[memoIndex].text;
+        const text = window.prompt("메모 내용을 수정하세요.\n※ 내용을 모두 지우고 확인을 누르면 삭제됩니다.", currentText);
+        
+        if (text !== null) {
+          if (text.trim() === "") {
+            memos.splice(memoIndex, 1);
+          } else {
+            memos[memoIndex] = { ...memos[memoIndex], text: text.trim() };
+          }
+          newImages[imgIndex] = { ...newImages[imgIndex], memos };
+          onUpdate(newImages);
+        }
+      };
+
+      // 💬 개별 메모 삭제 (X 버튼)
+      const deleteImageMemo = (imgIndex, memoId) => {
+        const newImages = [...images];
+        const memos = (newImages[imgIndex].memos || []).filter(m => m.id !== memoId);
+        newImages[imgIndex] = { ...newImages[imgIndex], memos };
+        onUpdate(newImages);
+      }
+
       if (!isEditing && images.length === 0) return null;
 
       return (
-        <div className={`w-full mb-4 ${alignCenter ? 'text-center' : (alignRight ? 'md:text-right' : 'text-left')}`}>
+        <div className={`w-full mb-4 flex flex-col ${alignCenter ? 'items-center' : (alignRight ? 'items-end' : 'items-start')}`}>
           {isEditing && (
-            <div className={`flex flex-col mb-2 gap-2 ${alignCenter ? 'items-center' : (alignRight ? 'md:items-end' : 'items-start')}`}>
-              <p className="text-xs text-gray-500 font-semibold flex items-center gap-1">
-                <ImageIcon size={14} /> 카드를 클릭한 뒤 Ctrl+V 로 이미지를 붙여넣을 수 있습니다.
+            <div className="flex flex-col mb-2 gap-2 w-full items-center">
+              <p className="text-xs text-gray-500 font-semibold flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-md text-center">
+                <ImageIcon size={14} /> 모서리와 테두리를 드래그하여 가로/세로 크기 변경 (이미지는 잘리지 않습니다)
               </p>
             </div>
           )}
           
-          <div className={`flex gap-3 overflow-x-auto py-2 items-center ${alignCenter ? 'justify-center' : (alignRight ? 'md:flex-row-reverse' : 'justify-start')} hide-scrollbar`}>
+          {/* 이미지가 커지면 줄바꿈(flex-wrap)되도록 설정 */}
+          <div className={`flex gap-4 flex-wrap py-4 px-2 w-full ${alignCenter ? 'justify-center' : (alignRight ? 'justify-end' : 'justify-start')} hide-scrollbar`}>
             {images.map((imgObj, index) => {
               const src = imgObj.src || imgObj;
-              const size = imgObj.size || (isLarge ? 160 : 112);
+              // 호환성 처리
+              let w = imgObj.width;
+              let h = imgObj.height;
+              
+              if (!w || !h) {
+                 const fallbackSize = imgObj.size || (isLarge ? 240 : 160);
+                 const aspectRatio = imgObj.aspectRatio || 1;
+                 w = fallbackSize;
+                 h = fallbackSize / aspectRatio;
+              }
+              
               const link = imgObj.link || "";
-              const comment = imgObj.comment || "";
-              const inlineStyle = { width: `${size}px`, height: `${size}px`, minWidth: `${size}px` };
+              let memos = imgObj.memos || [];
+              
+              const isBeingResized = resizingIdx === index;
+              const isBeingMemoDragged = draggingMemo && draggingMemo.imgIndex === index;
+              
+              // 틀이 크기에 맞춰 자유롭게 조정되도록 스타일 지정
+              const inlineStyle = { 
+                  width: `${w}px`, 
+                  height: `${h}px`, 
+                  minWidth: '60px',
+                  minHeight: '60px'
+              };
 
               return (
-                <div key={imgObj.id || index} draggable={isEditing} style={inlineStyle} onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onClick={() => !isEditing && openLightbox && openLightbox(images, index)} className={`shrink-0 relative rounded-lg overflow-hidden group shadow-sm border border-gray-200 transition-all ${isEditing ? 'cursor-grab active:cursor-grabbing hover:border-blue-400' : 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-300'}`}>
-                  <img src={src} alt={`Upload ${index}`} className="w-full h-full object-cover pointer-events-none" />
+                <div 
+                  id={`img-container-${index}`}
+                  key={imgObj.id || index} 
+                  draggable={isEditing && !isBeingResized && !isBeingMemoDragged} 
+                  style={inlineStyle} 
+                  onDragStart={(e) => handleHTML5DragStart(e, index)} 
+                  onDragEnter={(e) => handleDragEnter(e, index)} 
+                  onDragEnd={handleDragEnd} 
+                  onDragOver={(e) => e.preventDefault()} 
+                  onClick={() => !isEditing && openLightbox && openLightbox(images, index)} 
+                  className={`shrink-0 bg-gray-100 relative rounded-md overflow-hidden group shadow-sm border border-gray-200 transition-all ${isEditing ? 'hover:ring-4 hover:ring-blue-200' : 'cursor-pointer hover:shadow-xl hover:ring-2 hover:ring-blue-300'}`}
+                >
+                  {/* object-contain 속성으로 이미지가 잘리지 않고 100% 모두 표시됨 */}
+                  <img src={src} alt={`Upload ${index}`} className="w-full h-full object-contain pointer-events-none" />
                   
-                  {/* 💬 이미지 하단 코멘트 (캡션) 노출 */}
-                  {comment && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[11px] px-1.5 py-1.5 pointer-events-none z-0 backdrop-blur-[2px]">
-                      <p className="line-clamp-2 text-center leading-snug">{comment}</p>
+                  {/* 💬 자유형 다중 텍스트 메모 박스 */}
+                  {memos.map((memo) => (
+                    <div 
+                      key={memo.id}
+                      className={`absolute bg-white/95 border border-gray-200 text-gray-900 font-bold text-xs md:text-sm px-3 py-2 rounded-lg shadow-lg whitespace-pre-wrap text-center max-w-[90%] transition-transform ${isEditing ? 'cursor-move hover:ring-2 hover:ring-blue-400 hover:scale-105' : 'pointer-events-none'}`}
+                      style={{ left: `${memo.x}%`, top: `${memo.y}%`, transform: 'translate(-50%, -50%)', zIndex: 20 }}
+                      onPointerDown={(e) => isEditing ? handleMemoDragStart(e, index, memo.id, memo.x, memo.y) : undefined}
+                      onDoubleClick={(e) => { if(isEditing) { e.stopPropagation(); editImageMemo(index, memo.id); } }}
+                      title={isEditing ? "드래그하여 이동, 더블클릭하여 수정" : ""}
+                    >
+                      {memo.text}
+                      {/* 메모 개별 삭제(X) 버튼 */}
+                      {isEditing && (
+                         <button onClick={(e) => { e.stopPropagation(); deleteImageMemo(index, memo.id); }} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md">
+                           <X size={12} />
+                         </button>
+                      )}
                     </div>
-                  )}
+                  ))}
 
-                  {!isEditing && link && <div className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-md z-10 pointer-events-none shadow-sm backdrop-blur-sm"><LinkIcon size={12} /></div>}
+                  {!isEditing && link && <div className="absolute top-2 right-2 bg-black/70 text-white p-1.5 rounded-md z-10 pointer-events-none shadow-sm backdrop-blur-sm"><LinkIcon size={14} /></div>}
                   
                   {isEditing && (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-md"><X size={14} /></button>
+                      {/* 이미지 전체 삭제 버튼 (우측 상단 고정) */}
+                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"><X size={16} /></button>
                       
-                      {/* 편집 오버레이 화면 (링크, 코멘트, 크기조절) */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 backdrop-blur-[2px]" onPointerDown={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1.5">
-                          <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className={`p-2 rounded-full transition-colors shadow-sm ${link ? 'bg-blue-600 text-white' : 'bg-white/90 text-gray-800 hover:bg-blue-500 hover:text-white'}`} title={link ? "링크 수정" : "링크 삽입"}><LinkIcon size={14} /></button>
-                          
-                          {/* 💬 코멘트 입력 버튼 */}
-                          <button onClick={(e) => { e.stopPropagation(); updateImageComment(index); }} className={`p-2 rounded-full transition-colors shadow-sm ${comment ? 'bg-green-600 text-white' : 'bg-white/90 text-gray-800 hover:bg-green-500 hover:text-white'}`} title={comment ? "코멘트 수정" : "코멘트 삽입"}><MessageSquare size={14} /></button>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, -20); }} className="bg-white/20 text-white p-1.5 rounded-md hover:bg-gray-700 transition-colors" title="축소"><ZoomOut size={14} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, 20); }} className="bg-white/20 text-white p-1.5 rounded-md hover:bg-gray-700 transition-colors" title="확대"><ZoomIn size={14} /></button>
+                      {/* 중앙 배열된 편집 오버레이 */}
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/10 backdrop-blur-[1px] pointer-events-none">
+                        <div className="flex gap-3 pointer-events-auto">
+                          <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-md hover:bg-gray-100 transition-colors" title={link ? "링크 수정" : "링크 삽입"}>
+                             <LinkIcon size={18} className={link ? "text-blue-600" : ""} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); addImageMemo(index); }} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-md hover:bg-gray-100 transition-colors" title="새 메모 박스 추가">
+                             <MessageSquare size={18} />
+                          </button>
                         </div>
                       </div>
+
+                      {/* 🛠 자유 크기 조절 핸들 (위치/정렬에 따라 제공되는 핸들 다름) */}
+                      {alignCenter && (
+                        <>
+                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
+                            <ArrowDownRight size={16} />
+                          </div>
+                          <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-white bg-blue-500 rounded-tr-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')} title="드래그하여 크기 조절">
+                            <ArrowDownLeft size={16} />
+                          </div>
+                        </>
+                      )}
+                      
+                      {alignRight && !alignCenter && (
+                        <>
+                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-white bg-blue-500 rounded-tr-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')} title="드래그하여 크기 조절">
+                            <ArrowDownLeft size={16} />
+                          </div>
+                        </>
+                      )}
+
+                      {!alignRight && !alignCenter && (
+                        <>
+                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
+                            <ArrowDownRight size={16} />
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* 공통 적용 하단 핸들 */}
+                      <div className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 's')}></div>
                     </>
                   )}
                 </div>
               );
             })}
             {isEditing && (
-              <label style={{ width: isLarge ? '160px' : '112px', height: isLarge ? '160px' : '112px', minWidth: isLarge ? '160px' : '112px' }} className="shrink-0 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-gray-400 hover:text-blue-500">
-                <Plus size={24} />
-                <span className="text-xs mt-1 font-medium">사진 추가</span>
+              <label style={{ width: isLarge ? '160px' : '112px', height: isLarge ? '160px' : '112px', minWidth: isLarge ? '160px' : '112px' }} className="shrink-0 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-gray-400 hover:text-blue-500">
+                <Plus size={28} />
+                <span className="text-sm mt-2 font-bold">사진 추가</span>
                 <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
               </label>
             )}

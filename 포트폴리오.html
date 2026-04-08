@@ -24,14 +24,17 @@
   <!-- React 앱이 렌더링될 루트 -->
   <div id="root"></div>
 
-  <script type="text/babel">
+  <!-- data-type="module"을 추가하여 Firebase ES Module을 사용할 수 있게 합니다 -->
+  <script type="text/babel" data-type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     const { useState, useRef, useEffect } = React;
 
     // --- Lucide 아이콘 대체용 (HTML에서 바로 쓰기 위한 SVG 컴포넌트) ---
     const IconBase = ({ children, size = 24, className = "" }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        {children}
-      </svg>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
     );
     const Eye = (p) => <IconBase {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></IconBase>;
     const Edit3 = (p) => <IconBase {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></IconBase>;
@@ -45,41 +48,65 @@
     const ZoomIn = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
     const ZoomOut = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></IconBase>;
     const LinkIcon = (p) => <IconBase {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></IconBase>;
+    const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
+    const CheckCircle = (p) => <IconBase {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
 
     // --- 초기 데이터 세팅 ---
     // /* DATA_START */
     const initialHeader = {
       name: "게임 기획자",
       email: "GUPABAL@kakao.com",
-      phone: "010-4567-5368"
+      phone: "010-4567-5368",
+      title: "탄탄한 경제 구조와 전투 밸런스로 게임의 재미를 설계합니다"
     };
 
     const initialTimeline = [
-      {
-        id: 7, period: "2023.06 ~ 재직중", company: "블루포션게임즈 (사원)", project: "대표 게임: 에오스블랙 | 엔진: 유니티", tags: "에오스블랙, 구조 설계, 수치 밸런스, 라이브 서비스", images: []
-      },
-      {
-        id: 6, period: "2021.05 ~ 2023.05", company: "플레이위드게임즈 (사원)", project: "대표 게임: 씰 온라인 M | 엔진: 유니티", tags: "Unity, 시스템 개편, 경제/전투 밸런스", images: []
-      },
-      {
-        id: 5, period: "2019.11 ~ 2021.04", company: "모히또게임즈 (사원)", project: "대표 게임: 히어로볼Z, Project M | 엔진: 유니티", tags: "라이브 서비스, 역기획서, 테이블 설계", images: []
-      },
-      {
-        id: 4, period: "2018.02 ~ 2019.02", company: "스톰게임즈 (사원)", project: "대표 게임: 라스트 소울 | 엔진: 유니티", tags: "Unity, 시스템 개편", images: []
-      },
-      {
-        id: 3, period: "2017.04 ~ 2018.02", company: "805FACTORY (기획 팀장)", project: "대표 게임: 던전 워커 | 엔진: 유니티", tags: "Unity, 팀 리딩/일정 관리, 전투/경제 밸런스", images: []
-      },
-      {
-        id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: []
-      },
-      {
-        id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: []
-      }
+      { id: 7, period: "2023.06 ~ 재직중", company: "블루포션게임즈 (사원)", project: "대표 게임: 에오스블랙 | 엔진: 유니티", tags: "에오스블랙, 구조 설계, 수치 밸런스, 라이브 서비스", images: [] },
+      { id: 6, period: "2021.05 ~ 2023.05", company: "플레이위드게임즈 (사원)", project: "대표 게임: 씰 온라인 M | 엔진: 유니티", tags: "Unity, 시스템 개편, 경제/전투 밸런스", images: [] },
+      { id: 5, period: "2019.11 ~ 2021.04", company: "모히또게임즈 (사원)", project: "대표 게임: 히어로볼Z, Project M | 엔진: 유니티", tags: "라이브 서비스, 역기획서, 테이블 설계", images: [] },
+      { id: 4, period: "2018.02 ~ 2019.02", company: "스톰게임즈 (사원)", project: "대표 게임: 라스트 소울 | 엔진: 유니티", tags: "Unity, 시스템 개편", images: [] },
+      { id: 3, period: "2017.04 ~ 2018.02", company: "805FACTORY (기획 팀장)", project: "대표 게임: 던전 워커 | 엔진: 유니티", tags: "Unity, 팀 리딩/일정 관리, 전투/경제 밸런스", images: [] },
+      { id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: [] },
+      { id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: [] }
     ];
     // /* DATA_END */
 
     const isExported = false; // 배포용 파일 변환 시 true로 치환됨
+
+    // --- Firebase Setup ---
+    let db = null;
+    let auth = null;
+    let appId = 'default-app-id';
+
+    if (!isExported && typeof __firebase_config !== 'undefined') {
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    }
+
+    // --- 이미지 압축 (Firestore 용량 제한 방지용) ---
+    const resizeImage = (dataUrl, maxWidth = 900) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8)); // 80% 화질의 JPEG로 압축
+        };
+        img.src = dataUrl;
+      });
+    };
 
     // --- 메인 App 컴포넌트 ---
     function App() {
@@ -88,10 +115,85 @@
       const [timeline, setTimeline] = useState(initialTimeline);
       const [lightbox, setLightbox] = useState({ isOpen: false, images: [], currentIndex: 0 });
       const [activeCardId, setActiveCardId] = useState(null);
+      const [toastMsg, setToastMsg] = useState('');
+
+      // 클라우드 동기화 상태 관리
+      const [user, setUser] = useState(null);
+      const [initialLoadDone, setInitialLoadDone] = useState(isExported);
+      const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+      const isFirstRender = useRef(true);
+
+      // 1. Auth 초기화
+      useEffect(() => {
+        if (isExported || !auth) return;
+        const initAuth = async () => {
+          try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+              await signInAnonymously(auth);
+            }
+          } catch (error) {
+            console.error("Auth error", error);
+          }
+        };
+        initAuth();
+
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          setUser(currentUser);
+        });
+        return () => unsubscribe();
+      }, []);
+
+      // 2. 초기 데이터 불러오기
+      useEffect(() => {
+        if (isExported || !user || !db) return;
+        
+        const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioData', 'main');
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.header) setHeader(data.header);
+            if (data.timeline) setTimeline(data.timeline);
+          }
+          setInitialLoadDone(true);
+        }, (err) => {
+          console.error("Snapshot error:", err);
+          setInitialLoadDone(true);
+        });
+
+        return () => unsubscribe();
+      }, [user]);
+
+      // 3. 변경사항 자동 저장 (Debounce)
+      useEffect(() => {
+        if (isExported || !initialLoadDone || !user || !db) return;
+        
+        // 첫 렌더링 시에는 덮어쓰기 방지
+        if (isFirstRender.current) {
+          isFirstRender.current = false;
+          return;
+        }
+
+        setIsCloudSyncing(true);
+        const timer = setTimeout(async () => {
+          try {
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioData', 'main');
+            await setDoc(docRef, { header, timeline }, { merge: true });
+          } catch (err) {
+            console.error("Save error:", err);
+          } finally {
+            setIsCloudSyncing(false);
+          }
+        }, 1500); // 1.5초 대기 후 저장
+
+        return () => clearTimeout(timer);
+      }, [header, timeline, initialLoadDone, user]);
+
 
       // 글로벌 클립보드 붙여넣기(Ctrl+V)
       useEffect(() => {
-        const handleGlobalPaste = (e) => {
+        const handleGlobalPaste = async (e) => {
           if (!isEditing || isExported) return;
           const items = e.clipboardData?.items;
           if (!items) return;
@@ -116,49 +218,45 @@
           const activeItem = timeline[activeItemIndex];
           const isLarge = activeItemIndex === 0;
 
-          const newImages = [...activeItem.images];
-          let loadedCount = 0;
+          // 압축을 위한 프로미스 배열 처리
+          const processedImages = await Promise.all(files.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = async (ev) => {
+                const compressedSrc = await resizeImage(ev.target.result);
+                resolve({
+                  id: Date.now() + Math.random(),
+                  src: compressedSrc,
+                  size: activeItem.imageSize || (isLarge ? 160 : 112),
+                  link: "",
+                  comment: ""
+                });
+              };
+              reader.readAsDataURL(file);
+            });
+          }));
 
-          files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              newImages.push({
-                id: Date.now() + Math.random(),
-                src: ev.target.result,
-                size: activeItem.imageSize || (isLarge ? 160 : 112),
-                link: ""
-              });
-              loadedCount++;
-              if (loadedCount === files.length) {
-                setTimeline(prev => prev.map(item => item.id === targetId ? { ...item, images: newImages } : item));
-              }
-            };
-            reader.readAsDataURL(file);
-          });
+          setTimeline(prev => prev.map(item => item.id === targetId ? { ...item, images: [...item.images, ...processedImages] } : item));
         };
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
-      }, [isEditing, activeCardId, timeline]);
+      }, [isEditing, activeCardId, timeline, isExported]);
+
 
       // 🌟 완성본(읽기전용 HTML) 생성 및 다운로드 🌟
       const handleDownloadHTML = () => {
         const scriptElement = document.querySelector('script[type="text/babel"]');
         if (!scriptElement) {
-          alert("HTML 코드를 생성할 수 없습니다.");
+          setToastMsg("HTML 코드를 생성할 수 없습니다.");
+          setTimeout(() => setToastMsg(''), 3000);
           return;
         }
         
         let code = scriptElement.innerText;
-        
-        // 1. 현재 편집된 데이터를 코드에 직접 주입
         const dataReplacement = `\n    const initialHeader = ${JSON.stringify(header, null, 2)};\n    const initialTimeline = ${JSON.stringify(timeline, null, 2)};\n    `;
         code = code.replace(/\/\/ \/\* DATA_START \*\/[\s\S]*?\/\/ \/\* DATA_END \*\//, `// /* DATA_START */${dataReplacement}// /* DATA_END */`);
-        
-        // 2. 초기 상태를 '편집 불가(false)'로 강제 변경
         code = code.replace(/const \[isEditing, setIsEditing\] = useState\(true\);/, `const [isEditing, setIsEditing] = useState(false);`);
-        
-        // 3. 배포 모드 플래그 활성화 (상단 컨트롤 바 제거)
         code = code.replace(/const isExported = false;/, `const isExported = true;`);
 
         const scriptClose = '<' + '/script>';
@@ -179,7 +277,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
   <div id="root"></div>
-  <script type="text/babel">
+  <script type="text/babel" data-type="module">
 ${code}
   ${scriptClose}
 </body>
@@ -193,7 +291,8 @@ ${code}
         a.click();
         URL.revokeObjectURL(url);
         
-        alert("편집이 완벽하게 잠긴 최종 포트폴리오 HTML 파일이 다운로드되었습니다!\n이 파일을 열면 읽기 전용으로만 보이며, GitHub Pages에 바로 올릴 수 있습니다.");
+        setToastMsg("편집이 완벽하게 잠긴 최종 포트폴리오 HTML 파일이 다운로드되었습니다!");
+        setTimeout(() => setToastMsg(''), 4000);
       };
 
       const addExperience = () => {
@@ -206,23 +305,59 @@ ${code}
           images: [],
           imageSize: 112
         };
-        setTimeline([newItem, ...timeline]); // 맨 위에 추가되도록 역순 배치
+        setTimeline([newItem, ...timeline]); 
       };
 
       const removeExperience = (id) => setTimeline(timeline.filter(item => item.id !== id));
       const updateTimelineItem = (id, field, value) => setTimeline(timeline.map(item => item.id === id ? { ...item, [field]: value } : item));
 
+      // 클라우드 데이터를 불러오기 전 로딩 화면
+      if (!initialLoadDone && !isExported) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
+            <svg className="animate-spin h-10 w-10 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p className="font-semibold text-lg">클라우드에서 포트폴리오를 안전하게 불러오는 중입니다...</p>
+          </div>
+        );
+      }
+
       return (
         <div>
+          {/* 토스트 메시지 (알림) */}
+          {toastMsg && (
+            <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-2 animate-bounce">
+              <CheckCircle size={18} className="text-green-400" />
+              {toastMsg}
+            </div>
+          )}
+
           {/* 배포 모드(isExported)가 아닐 때만 컨트롤 바 표시 */}
           {!isExported && (
-            <div className="fixed top-4 right-4 z-50 flex gap-3 shadow-lg rounded-full bg-white p-2 border border-gray-200">
+            <div className="fixed top-4 right-4 z-50 flex items-center gap-3 shadow-lg rounded-full bg-white p-2 border border-gray-200">
+              
+              {/* ☁️ 클라우드 저장 상태 표시 */}
+              <div className="hidden sm:flex items-center ml-2 mr-1">
+                {isCloudSyncing ? (
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                    <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    자동 저장 중...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100 transition-all">
+                    <CheckCircle size={14} />
+                    클라우드 저장됨
+                  </span>
+                )}
+              </div>
+
+              <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
               <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-colors ${isEditing ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                 {isEditing ? <Eye size={18} /> : <Edit3 size={18} />}
                 {isEditing ? "미리보기 모드" : "편집 모드"}
               </button>
               <button onClick={handleDownloadHTML} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition duration-300 flex items-center gap-2">
-                <Download size={18} /> 완성본 저장 (HTML)
+                <Download size={18} /> HTML 다운로드
               </button>
             </div>
           )}
@@ -231,6 +366,7 @@ ${code}
             {isEditing && !isExported ? (
               <div className="space-y-4 max-w-2xl mx-auto">
                 <input value={header.name} onChange={(e) => setHeader({...header, name: e.target.value})} className="text-4xl md:text-5xl font-extrabold text-gray-900 text-center w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-blue-500 outline-none pb-2" placeholder="이름 또는 직무" />
+                <input value={header.title} onChange={(e) => setHeader({...header, title: e.target.value})} className="text-xl text-gray-600 font-medium text-center w-full bg-transparent border-b border-dashed border-gray-300 focus:border-blue-500 outline-none pb-1" placeholder="한 줄 소개를 입력하세요" />
                 <div className="flex justify-center gap-4 text-sm text-gray-500 mt-4">
                   <input value={header.email} onChange={(e) => setHeader({...header, email: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="이메일" />
                   <input value={header.phone} onChange={(e) => setHeader({...header, phone: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="연락처" />
@@ -239,6 +375,7 @@ ${code}
             ) : (
               <>
                 <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">{header.name.replace('포트폴리오', '')} <span className="text-blue-600">포트폴리오</span></h1>
+                <p className="text-xl text-gray-600 font-medium mb-6">"{header.title}"</p>
                 <div className="flex justify-center gap-4 text-sm text-gray-500">
                   <span>📧 {header.email}</span>
                   <span>📱 {header.phone}</span>
@@ -343,23 +480,37 @@ ${code}
             )}
           </section>
 
+          {/* 🚀 라이트박스 팝업 */}
           {lightbox.isOpen && (
             <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={() => setLightbox({ ...lightbox, isOpen: false })}>
               <button className="absolute top-4 right-4 text-white hover:text-gray-300 z-[101]" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, isOpen: false }); }}><X size={36} /></button>
+              
               {lightbox.images.length > 1 && (
                 <button className="absolute left-4 md:left-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex - 1 + lightbox.images.length) % lightbox.images.length }); }}><ChevronLeft size={48} /></button>
               )}
+              
               <div className="relative flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]">
-                <img src={lightbox.images[lightbox.currentIndex]?.src || lightbox.images[lightbox.currentIndex]} alt="Enlarged view" className="max-w-full max-h-[80vh] object-contain rounded-md shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                <img src={lightbox.images[lightbox.currentIndex]?.src || lightbox.images[lightbox.currentIndex]} alt="Enlarged view" className="max-w-full max-h-[70vh] object-contain rounded-md shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                
+                {/* 💬 라이트박스 코멘트 노출 영역 */}
+                {lightbox.images[lightbox.currentIndex]?.comment && (
+                  <div className="mt-4 bg-black/60 px-6 py-3 rounded-xl border border-gray-700/50 backdrop-blur-md max-w-2xl text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-white text-base md:text-lg font-medium leading-relaxed">
+                      {lightbox.images[lightbox.currentIndex].comment}
+                    </p>
+                  </div>
+                )}
+
                 {lightbox.images[lightbox.currentIndex]?.link && (
-                  <div className="mt-6" onClick={(e) => e.stopPropagation()}>
-                    <a href={lightbox.images[lightbox.currentIndex].link} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-full font-bold shadow-lg flex items-center gap-2">
-                      <LinkIcon size={18} /> 연결된 링크로 이동
+                  <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                    <a href={lightbox.images[lightbox.currentIndex].link} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2">
+                      <LinkIcon size={16} /> 연결된 링크로 이동
                     </a>
                   </div>
                 )}
-                <div className="absolute -bottom-10 left-0 right-0 text-center text-white/70 text-sm font-medium">{lightbox.currentIndex + 1} / {lightbox.images.length}</div>
+                <div className="absolute -bottom-8 left-0 right-0 text-center text-white/70 text-sm font-medium">{lightbox.currentIndex + 1} / {lightbox.images.length}</div>
               </div>
+
               {lightbox.images.length > 1 && (
                 <button className="absolute right-4 md:right-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex + 1) % lightbox.images.length }); }}><ChevronRight size={48} /></button>
               )}
@@ -374,21 +525,25 @@ ${code}
       const dragItem = useRef();
       const dragOverItem = useRef();
 
-      const handleFileChange = (e) => {
+      const handleFileChange = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
         const newImages = [...images];
-        let loadedCount = 0;
-        files.forEach(file => {
-          if (!file.type.startsWith('image/')) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            newImages.push({ id: Date.now() + Math.random(), src: ev.target.result, size: isLarge ? 160 : 112, link: "" });
-            loadedCount++;
-            if (loadedCount === files.length) onUpdate(newImages);
-          };
-          reader.readAsDataURL(file);
-        });
+        
+        const processedImages = await Promise.all(files.map(file => {
+          return new Promise((resolve) => {
+            if (!file.type.startsWith('image/')) return resolve(null);
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+              const compressedSrc = await resizeImage(ev.target.result);
+              resolve({ id: Date.now() + Math.random(), src: compressedSrc, size: isLarge ? 160 : 112, link: "", comment: "" });
+            };
+            reader.readAsDataURL(file);
+          });
+        }));
+
+        const validImages = processedImages.filter(img => img !== null);
+        onUpdate([...newImages, ...validImages]);
         e.target.value = '';
       };
 
@@ -424,6 +579,17 @@ ${code}
         }
       };
 
+      // 💬 코멘트 수정 기능 추가
+      const updateImageComment = (index) => {
+        const newImages = [...images];
+        const currentComment = newImages[index].comment || "";
+        let text = window.prompt("이미지에 대한 코멘트(설명)를 입력하세요.\n※ 빈 칸으로 등록하면 삭제됩니다.", currentComment);
+        if (text !== null) {
+          newImages[index] = { ...newImages[index], comment: text.trim() };
+          onUpdate(newImages);
+        }
+      };
+
       if (!isEditing && images.length === 0) return null;
 
       return (
@@ -441,19 +607,38 @@ ${code}
               const src = imgObj.src || imgObj;
               const size = imgObj.size || (isLarge ? 160 : 112);
               const link = imgObj.link || "";
+              const comment = imgObj.comment || "";
               const inlineStyle = { width: `${size}px`, height: `${size}px`, minWidth: `${size}px` };
 
               return (
                 <div key={imgObj.id || index} draggable={isEditing} style={inlineStyle} onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onClick={() => !isEditing && openLightbox && openLightbox(images, index)} className={`shrink-0 relative rounded-lg overflow-hidden group shadow-sm border border-gray-200 transition-all ${isEditing ? 'cursor-grab active:cursor-grabbing hover:border-blue-400' : 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-300'}`}>
                   <img src={src} alt={`Upload ${index}`} className="w-full h-full object-cover pointer-events-none" />
+                  
+                  {/* 💬 이미지 하단 코멘트 (캡션) 노출 */}
+                  {comment && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[11px] px-1.5 py-1.5 pointer-events-none z-0 backdrop-blur-[2px]">
+                      <p className="line-clamp-2 text-center leading-snug">{comment}</p>
+                    </div>
+                  )}
+
                   {!isEditing && link && <div className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-md z-10 pointer-events-none shadow-sm backdrop-blur-sm"><LinkIcon size={12} /></div>}
+                  
                   {isEditing && (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={14} /></button>
-                      <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" onPointerDown={(e) => e.stopPropagation()}>
-                        <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, -20); }} className="bg-black/70 text-white p-1.5 rounded-md hover:bg-blue-500 transition-colors"><ZoomOut size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className={`p-1.5 rounded-md transition-colors ${link ? 'bg-blue-600 text-white' : 'bg-black/70 text-white hover:bg-blue-500'}`}><LinkIcon size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, 20); }} className="bg-black/70 text-white p-1.5 rounded-md hover:bg-blue-500 transition-colors"><ZoomIn size={14} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-md"><X size={14} /></button>
+                      
+                      {/* 편집 오버레이 화면 (링크, 코멘트, 크기조절) */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/50 backdrop-blur-[2px]" onPointerDown={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1.5">
+                          <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className={`p-2 rounded-full transition-colors shadow-sm ${link ? 'bg-blue-600 text-white' : 'bg-white/90 text-gray-800 hover:bg-blue-500 hover:text-white'}`} title={link ? "링크 수정" : "링크 삽입"}><LinkIcon size={14} /></button>
+                          
+                          {/* 💬 코멘트 입력 버튼 */}
+                          <button onClick={(e) => { e.stopPropagation(); updateImageComment(index); }} className={`p-2 rounded-full transition-colors shadow-sm ${comment ? 'bg-green-600 text-white' : 'bg-white/90 text-gray-800 hover:bg-green-500 hover:text-white'}`} title={comment ? "코멘트 수정" : "코멘트 삽입"}><MessageSquare size={14} /></button>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, -20); }} className="bg-white/20 text-white p-1.5 rounded-md hover:bg-gray-700 transition-colors" title="축소"><ZoomOut size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); updateImageSize(index, 20); }} className="bg-white/20 text-white p-1.5 rounded-md hover:bg-gray-700 transition-colors" title="확대"><ZoomIn size={14} /></button>
+                        </div>
                       </div>
                     </>
                   )}

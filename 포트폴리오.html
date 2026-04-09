@@ -18,20 +18,20 @@
   <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 반응형 화면 크기별 중앙점과 카드 사이의 간격 수치 (스마트 연결선 길이 자동 계산용) */
+    .gap-vars { --card-gap: 64px; } /* 모바일 */
+    @media (min-width: 768px) { .gap-vars { --card-gap: 32px; } } /* 태블릿 */
+    @media (min-width: 1024px) { .gap-vars { --card-gap: 48px; } } /* 데스크탑 */
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
-  <!-- React 앱이 렌더링될 루트 -->
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20 overflow-x-auto">
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
     const { useState, useRef, useEffect } = React;
 
-    // --- Lucide 아이콘 대체용 (HTML에서 바로 쓰기 위한 SVG 컴포넌트) ---
+    // --- Lucide 아이콘 ---
     const IconBase = ({ children, size = 24, className = "" }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
     );
@@ -50,6 +50,7 @@
     const RotateCcw = (p) => <IconBase {...p}><polyline points="3 2 3 14 15 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L3 14"/></IconBase>;
     const ArrowDownRight = (p) => <IconBase {...p}><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></IconBase>;
     const ArrowDownLeft = (p) => <IconBase {...p}><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></IconBase>;
+    const MoveHorizontal = (p) => <IconBase {...p}><polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/></IconBase>;
 
     // --- 초기 데이터 세팅 ---
     // /* DATA_START */
@@ -60,19 +61,19 @@
     };
 
     const initialTimeline = [
-      { id: 7, period: "2023.06 ~ 재직중", company: "블루포션게임즈 (사원)", project: "대표 게임: 에오스블랙 | 엔진: 유니티", tags: "에오스블랙, 구조 설계, 수치 밸런스, 라이브 서비스", images: [] },
-      { id: 6, period: "2021.05 ~ 2023.05", company: "플레이위드게임즈 (사원)", project: "대표 게임: 씰 온라인 M | 엔진: 유니티", tags: "Unity, 시스템 개편, 경제/전투 밸런스", images: [] },
-      { id: 5, period: "2019.11 ~ 2021.04", company: "모히또게임즈 (사원)", project: "대표 게임: 히어로볼Z, Project M | 엔진: 유니티", tags: "라이브 서비스, 역기획서, 테이블 설계", images: [] },
-      { id: 4, period: "2018.02 ~ 2019.02", company: "스톰게임즈 (사원)", project: "대표 게임: 라스트 소울 | 엔진: 유니티", tags: "Unity, 시스템 개편", images: [] },
-      { id: 3, period: "2017.04 ~ 2018.02", company: "805FACTORY (기획 팀장)", project: "대표 게임: 던전 워커 | 엔진: 유니티", tags: "Unity, 팀 리딩/일정 관리, 전투/경제 밸런스", images: [] },
-      { id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: [] },
-      { id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: [] }
+      { id: 7, period: "2023.06 ~ 재직중", company: "블루포션게임즈 (사원)", project: "대표 게임: 에오스블랙 | 엔진: 유니티", tags: "에오스블랙, 구조 설계, 수치 밸런스, 라이브 서비스", images: [], cardOffsetX: 0 },
+      { id: 6, period: "2021.05 ~ 2023.05", company: "플레이위드게임즈 (사원)", project: "대표 게임: 씰 온라인 M | 엔진: 유니티", tags: "Unity, 시스템 개편, 경제/전투 밸런스", images: [], cardOffsetX: 0 },
+      { id: 5, period: "2019.11 ~ 2021.04", company: "모히또게임즈 (사원)", project: "대표 게임: 히어로볼Z, Project M | 엔진: 유니티", tags: "라이브 서비스, 역기획서, 테이블 설계", images: [], cardOffsetX: 0 },
+      { id: 4, period: "2018.02 ~ 2019.02", company: "스톰게임즈 (사원)", project: "대표 게임: 라스트 소울 | 엔진: 유니티", tags: "Unity, 시스템 개편", images: [], cardOffsetX: 0 },
+      { id: 3, period: "2017.04 ~ 2018.02", company: "805FACTORY (기획 팀장)", project: "대표 게임: 던전 워커 | 엔진: 유니티", tags: "Unity, 팀 리딩/일정 관리, 전투/경제 밸런스", images: [], cardOffsetX: 0 },
+      { id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: [], cardOffsetX: 0 },
+      { id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: [], cardOffsetX: 0 }
     ];
     // /* DATA_END */
 
-    const isExported = false; // 배포용 파일 변환 시 true로 치환됨
+    const isExported = false; 
 
-    // --- 100% 로컬 데이터 전용 로딩 (서버 연결 완전 제거) ---
+    // --- 100% 로컬 데이터 전용 로딩 ---
     const loadLocalData = () => {
       if (isExported) return { header: initialHeader, timeline: initialTimeline };
       try {
@@ -121,14 +122,14 @@
       const [toastMsg, setToastMsg] = useState('');
       const [isSaved, setIsSaved] = useState(true);
 
-      // --- 여러 속성을 동시에 업데이트하여 리액트 버그를 방지하는 함수 ---
+      // --- 여러 상태를 덮어쓰기 없이 한 번에! 동시 업데이트 패치 ---
       const updateTimelineItem = (id, fieldOrUpdates, value) => {
         setTimeline(prev => prev.map(item => {
           if (item.id === id) {
             if (typeof fieldOrUpdates === 'string') {
               return { ...item, [fieldOrUpdates]: value };
             } else {
-              return { ...item, ...fieldOrUpdates }; // 다중 필드 동시 업데이트
+              return { ...item, ...fieldOrUpdates }; // 다중 필드(가로/세로) 동시 병합 처리
             }
           }
           return item;
@@ -146,15 +147,16 @@
           tags: "태그1, 태그2",
           images: [],
           cardWidth: null,
-          cardHeight: null
+          cardHeight: null,
+          cardOffsetX: 0
         };
         setTimeline(prev => [newItem, ...prev]); 
       };
 
-      // --- 카드 크기 조절 (무제한 드래그 앤 드롭) ---
+      // --- 카드 크기 무제한 확장 로직 ---
       const [resizingCardIdx, setResizingCardIdx] = useState(null);
       const [cardResizeStart, setCardResizeStart] = useState({x: 0, y: 0, w: 0, h: 0, isCentered: false});
-      const [cardResizeDir, setCardResizeDir] = useState(null); // 'e', 'w', 's', 'se', 'sw'
+      const [cardResizeDir, setCardResizeDir] = useState(null); 
 
       const handleCardResizeStart = (e, id, dir, isCentered = false) => {
         e.stopPropagation(); 
@@ -171,7 +173,6 @@
           let deltaX = e.clientX - cardResizeStart.x;
           const deltaY = e.clientY - cardResizeStart.y;
           
-          // 가운데 정렬된 카드일 경우, 양쪽으로 늘어나기 때문에 마우스 커서를 따라잡기 위해 2배속을 줍니다.
           if (cardResizeStart.isCentered) {
             deltaX *= 2;
           }
@@ -179,7 +180,7 @@
           let newW = cardResizeStart.w;
           let newH = cardResizeStart.h;
 
-          // 방향에 따른 가로/세로 무제한 확장
+          // 방향에 따른 무제한 확장
           if (cardResizeDir === 'e' || cardResizeDir === 'se') {
             newW = Math.max(300, cardResizeStart.w + deltaX);
           }
@@ -190,7 +191,7 @@
             newH = Math.max(200, cardResizeStart.h + deltaY);
           }
           
-          // ✨ 한번에 2가지 상태(가로, 세로)를 업데이트하여 덮어쓰기(Batching) 버그 해결
+          // 가로와 세로 길이를 한번에 묶어서 업데이트! (덮어쓰기 버그 완벽 해결)
           updateTimelineItem(resizingCardIdx, { cardWidth: newW, cardHeight: newH });
         };
         const handleUp = () => { setResizingCardIdx(null); setCardResizeDir(null); };
@@ -202,7 +203,31 @@
         }
       }, [resizingCardIdx, cardResizeStart, cardResizeDir]);
 
-      // --- 로컬스토리지 자동 저장 (서버 통신 없음) ---
+      // --- 카드 좌우 이동 (오프셋) 로직 ---
+      const [draggingCardOffset, setDraggingCardOffset] = useState(null);
+
+      const handleCardOffsetStart = (e, id, currentOffset) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setDraggingCardOffset({ id, startX: e.clientX, startOffset: currentOffset || 0 });
+      };
+
+      useEffect(() => {
+        if (draggingCardOffset === null) return;
+        const handleMove = (e) => {
+          const deltaX = e.clientX - draggingCardOffset.startX;
+          updateTimelineItem(draggingCardOffset.id, 'cardOffsetX', draggingCardOffset.startOffset + deltaX);
+        };
+        const handleUp = () => setDraggingCardOffset(null);
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        return () => {
+          window.removeEventListener('pointermove', handleMove);
+          window.removeEventListener('pointerup', handleUp);
+        };
+      }, [draggingCardOffset]);
+
+      // --- 로컬스토리지 자동 저장 ---
       useEffect(() => {
         if (isExported) return;
         setIsSaved(false);
@@ -211,7 +236,7 @@
             localStorage.setItem('portfolioLocalData', JSON.stringify({ header, timeline }));
             setIsSaved(true);
           } catch(e) { console.error("저장 실패", e); }
-        }, 1000); // 1초 뒤 자동 저장
+        }, 1000); 
         return () => clearTimeout(timer);
       }, [header, timeline]);
 
@@ -247,8 +272,6 @@
               const reader = new FileReader();
               reader.onload = async (ev) => {
                 const { url, aspectRatio } = await resizeImage(ev.target.result);
-                
-                // 가로/세로 독립 크기 지원 (초기화)
                 const initW = isLarge ? 240 : 160;
                 const initH = initW / aspectRatio;
 
@@ -266,29 +289,23 @@
             });
           }));
 
-          setTimeline(prev => prev.map(item => item.id === targetId ? { ...item, images: [...item.images, ...processedImages] } : item));
+          updateTimelineItem(targetId, 'images', [...activeItem.images, ...processedImages]);
         };
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
       }, [isEditing, activeCardId, timeline]);
 
-      // 🌟 초기화 기능 🌟
       const handleReset = () => {
         if (window.confirm("경고: 모든 변경사항과 추가한 사진이 삭제되고 빈 화면으로 초기화됩니다.\n정말 초기화하시겠습니까?")) {
-          setHeader({
-            name: "게임 기획자",
-            email: "GUPABAL@kakao.com",
-            phone: "010-4567-5368"
-          });
-          setTimeline([]); // 빈 배열로 완전히 초기화
-          localStorage.removeItem('portfolioLocalData'); // 로컬 데이터 삭제
+          setHeader({ name: "게임 기획자", email: "GUPABAL@kakao.com", phone: "010-4567-5368" });
+          setTimeline([]); 
+          localStorage.removeItem('portfolioLocalData'); 
           setToastMsg("포트폴리오가 빈 화면으로 초기화되었습니다.");
           setTimeout(() => setToastMsg(''), 4000);
         }
       };
 
-      // 🌟 완성본(읽기전용 HTML) 생성 및 다운로드 🌟
       const handleDownloadHTML = () => {
         const scriptElement = document.querySelector('script[type="text/babel"]');
         if (!scriptElement) {
@@ -317,9 +334,12 @@
   <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .gap-vars { --card-gap: 64px; }
+    @media (min-width: 768px) { .gap-vars { --card-gap: 32px; } }
+    @media (min-width: 1024px) { .gap-vars { --card-gap: 48px; } }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20">
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20 overflow-x-auto">
   <div id="root"></div>
   <script type="text/babel">
 ${code}
@@ -366,12 +386,7 @@ ${code}
 
               <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
 
-              {/* 🌟 초기화 버튼 🌟 */}
-              <button 
-                onClick={handleReset} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold transition-colors text-red-600 hover:bg-red-50"
-                title="모든 변경사항을 삭제하고 처음 상태로 되돌립니다."
-              >
+              <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold transition-colors text-red-600 hover:bg-red-50" title="모든 변경사항을 삭제하고 처음 상태로 되돌립니다.">
                 <RotateCcw size={18} />
                 <span className="hidden sm:inline text-sm">초기화</span>
               </button>
@@ -408,7 +423,8 @@ ${code}
             )}
           </header>
 
-          <section className="w-full px-4 sm:px-8 md:px-16 py-4 relative">
+          <section className="gap-vars w-full px-4 sm:px-8 md:px-16 py-4 relative">
+            {/* 전체 배경을 관통하는 옅은 파란색 중앙 수직선 */}
             <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-blue-200 transform md:-translate-x-1/2 rounded z-0"></div>
 
             <div className="space-y-12 relative z-10 w-full flex flex-col items-center">
@@ -419,96 +435,177 @@ ${code}
                 if (isFirst) {
                   return (
                     <div key={item.id} className="relative flex flex-col items-center justify-center group mb-16 timeline-card w-full mt-8">
-                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-10 mb-4 shrink-0">
+                      {/* 중앙 메인 점 (연대기 점) */}
+                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-20 mb-4 shrink-0">
                         <span className="text-white font-bold text-sm">Now</span>
                       </div>
                       
-                      {/* 가로세로 제한 완전히 해제된 중앙 카드 */}
-                      <div 
-                        onClick={() => isEditing && setActiveCardId(item.id)} 
-                        className={`text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-colors cursor-default shrink-0 ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'} ${item.cardWidth ? '' : 'w-full max-w-3xl'}`}
-                        style={{
-                          width: item.cardWidth ? `${item.cardWidth}px` : undefined,
-                          minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
-                          maxWidth: item.cardWidth ? 'none' : undefined,
-                          minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto'
-                        }}
-                      >
-                        {isEditing && !isExported && (
-                          <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm z-30"><Trash2 size={18} /></button>
-                        )}
-                        <div className="text-center mb-6">
+                      {/* 카드 전체 래퍼 */}
+                      <div className="relative flex justify-center w-full z-10">
+                        
+                        {/* 🔗 중앙 점과 카드를 다이렉트로 이어주는 스마트 점선 (오른쪽으로 당길 때) */}
+                        <div className={`absolute top-[40px] right-1/2 h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity duration-300 ${(!item.cardOffsetX || Math.abs(item.cardOffsetX) < 5) ? 'opacity-0' : 'opacity-100'}`}
+                             style={{ width: `max(0px, calc(${item.cardOffsetX || 0}px - 50%))` }}>
+                             <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
+                        </div>
+                        
+                        {/* 🔗 중앙 점과 카드를 다이렉트로 이어주는 스마트 점선 (왼쪽으로 당길 때) */}
+                        <div className={`absolute top-[40px] left-1/2 h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity duration-300 ${(!item.cardOffsetX || Math.abs(item.cardOffsetX) < 5) ? 'opacity-0' : 'opacity-100'}`}
+                             style={{ width: `max(0px, calc(-1 * (${item.cardOffsetX || 0}px + 50%)))` }}>
+                             <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
+                        </div>
+
+                        <div 
+                          onClick={() => isEditing && setActiveCardId(item.id)} 
+                          className={`text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-colors cursor-default shrink-0 ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'} ${item.cardWidth ? '' : 'w-full max-w-3xl'}`}
+                          style={{
+                            width: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                            minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
+                            maxWidth: 'none',
+                            minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto',
+                            transform: item.cardOffsetX ? `translateX(${item.cardOffsetX}px)` : undefined
+                          }}
+                        >
+                          {/* 🛠 중앙 카드 좌우 이동 핸들 */}
+                          {isEditing && !isExported && (
+                            <div
+                              className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-0.5 bg-white border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 rounded-full cursor-ew-resize z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
+                              onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX)}
+                              title="좌우로 드래그하여 카드 위치 자유 이동"
+                            >
+                              <MoveHorizontal size={18} />
+                            </div>
+                          )}
+                          
+                          {isEditing && !isExported && (
+                            <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm z-30"><Trash2 size={18} /></button>
+                          )}
+                          <div className="text-center mb-6">
+                            {isEditing && !isExported ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-indigo-300 outline-none text-center w-48" />
+                                <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className="text-3xl font-extrabold text-gray-900 bg-transparent border-b-2 border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                                <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className="text-gray-600 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                              </div>
+                            ) : (
+                              <>
+                                <span className="text-indigo-600 font-bold text-sm tracking-wider">{item.period}</span>
+                                <h3 className="text-3xl font-extrabold text-gray-900 mt-2 mb-1">{item.company}</h3>
+                                <p className="text-gray-600 text-sm font-medium">{item.project}</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-50 w-full mb-4 text-center">
+                            <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={true} alignCenter={true} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
+                          </div>
                           {isEditing && !isExported ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-indigo-300 outline-none text-center w-48" />
-                              <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className="text-3xl font-extrabold text-gray-900 bg-transparent border-b-2 border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
-                              <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className="text-gray-600 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                            <div className="mt-6 flex flex-col items-center">
+                              <span className="text-xs text-gray-500 mb-1">태그 (쉼표로 구분)</span>
+                              <input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full max-w-lg px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-center" />
                             </div>
                           ) : (
+                            <div className="flex justify-center flex-wrap gap-2 mt-6">
+                              {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-4 py-1.5 bg-white text-indigo-600 border border-indigo-200 rounded-full text-sm font-semibold shadow-sm">{tag.trim()}</span>)}
+                            </div>
+                          )}
+                          
+                          {/* 🛠 중앙 포트폴리오 카드 무제한 크기 조절 핸들 */}
+                          {isEditing && !isExported && (
                             <>
-                              <span className="text-indigo-600 font-bold text-sm tracking-wider">{item.period}</span>
-                              <h3 className="text-3xl font-extrabold text-gray-900 mt-2 mb-1">{item.company}</h3>
-                              <p className="text-gray-600 text-sm font-medium">{item.project}</p>
+                              <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-r-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', true)}></div>
+                              <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-l-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', true)}></div>
+                              <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-b-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', true)}></div>
+                              <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-indigo-300 hover:text-indigo-600 rounded-br-3xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', true)} title="드래그하여 크기 조절">
+                                <ArrowDownRight size={18} />
+                              </div>
+                              <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-indigo-300 hover:text-indigo-600 rounded-bl-3xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', true)} title="드래그하여 크기 조절">
+                                <ArrowDownLeft size={18} />
+                              </div>
                             </>
                           )}
                         </div>
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-50 w-full mb-4 text-center">
-                          <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={true} alignCenter={true} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
-                        </div>
-                        {isEditing && !isExported ? (
-                          <div className="mt-6 flex flex-col items-center">
-                            <span className="text-xs text-gray-500 mb-1">태그 (쉼표로 구분)</span>
-                            <input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full max-w-lg px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-center" />
-                          </div>
-                        ) : (
-                          <div className="flex justify-center flex-wrap gap-2 mt-6">
-                            {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-4 py-1.5 bg-white text-indigo-600 border border-indigo-200 rounded-full text-sm font-semibold shadow-sm">{tag.trim()}</span>)}
-                          </div>
-                        )}
-                        
-                        {/* 🛠 중앙 포트폴리오 카드 크기 조절 핸들 (가로/세로 독립, 마우스 2배속 적용) */}
-                        {isEditing && !isExported && (
-                          <>
-                            <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-r-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', true)}></div>
-                            <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-l-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', true)}></div>
-                            <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-indigo-300/30 transition-colors rounded-b-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', true)}></div>
-                            <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-indigo-300 hover:text-indigo-600 rounded-br-3xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', true)} title="드래그하여 크기 조절">
-                              <ArrowDownRight size={18} />
-                            </div>
-                            <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-indigo-300 hover:text-indigo-600 rounded-bl-3xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', true)} title="드래그하여 크기 조절">
-                              <ArrowDownLeft size={18} />
-                            </div>
-                          </>
-                        )}
                       </div>
                     </div>
                   );
                 }
 
-                // 일반 카드 (좌/우 배치)
+                // 일반 카드 (좌/우 배치 구조)
                 return (
                   <div key={item.id} className={`relative flex flex-col md:flex-row w-full group timeline-card mb-12 ${isEven ? '' : 'md:flex-row-reverse'}`}>
-                    <div className="absolute left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 z-10 shrink-0">
+                    
+                    {/* 중앙 연대기 파란 점 */}
+                    <div className="absolute top-10 left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 z-20 shrink-0">
                        <div className="w-2 h-2 bg-white rounded-full"></div>
                     </div>
+
                     <div className="hidden md:block md:w-1/2 shrink-0"></div>
                     
-                    {/* 일반 카드 외곽 래퍼 (크기 조정 주체) */}
+                    {/* 일반 카드 외곽 래퍼 */}
                     <div 
                       className={`flex flex-col shrink-0 transition-colors ${isEven ? 'items-start pl-16 md:pl-8 lg:pl-12' : 'items-start md:items-end pl-16 md:pl-0 md:pr-8 lg:pr-12'} ${item.cardWidth ? '' : 'w-full md:w-1/2'}`}
                       style={{ 
                         width: item.cardWidth ? `${item.cardWidth}px` : undefined,
                         minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
-                        maxWidth: item.cardWidth ? 'none' : undefined
+                        maxWidth: 'none'
                       }}
                     >
                       <div 
                         onClick={() => isEditing && setActiveCardId(item.id)} 
-                        className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-colors cursor-default shrink-0 w-full ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}
+                        className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-colors cursor-default shrink-0 w-full z-10 ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}
                         style={{
-                          minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto'
+                          minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto',
+                          transform: item.cardOffsetX ? `translateX(${item.cardOffsetX}px)` : undefined
                         }}
                       >
+                        {/* 🔗 일반 카드를 위한 스마트 연결선 (카드 안에 들어가 숨어있다가 당기면 나타남!) */}
+                        {isEven ? (
+                           <>
+                             {/* Right Card (isEven) Lines */}
+                             <div className="absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(var(--card-gap) + ${item.cardOffsetX || 0}px))` }}>
+                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                             <div className="absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(-1 * (var(--card-gap) + ${item.cardOffsetX || 0}px + 100%)))` }}>
+                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                           </>
+                        ) : (
+                           <>
+                             {/* Left Card (!isEven) Lines -> Mobile (behaves like Right Card) */}
+                             <div className="md:hidden absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(var(--card-gap) + ${item.cardOffsetX || 0}px))` }}>
+                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                             <div className="md:hidden absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(-1 * (var(--card-gap) + ${item.cardOffsetX || 0}px + 100%)))` }}>
+                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                             
+                             {/* Left Card (!isEven) Lines -> Desktop */}
+                             <div className="hidden md:block absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(var(--card-gap) - ${item.cardOffsetX || 0}px))` }}>
+                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                             <div className="hidden md:block absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
+                                  style={{ width: `max(0px, calc(${item.cardOffsetX || 0}px - var(--card-gap) - 100%))` }}>
+                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
+                             </div>
+                           </>
+                        )}
+
+
+                        {/* 🛠 바깥 포트폴리오 카드 좌우 오프셋 이동 핸들 */}
+                        {isEditing && !isExported && (
+                          <div
+                            className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-0.5 bg-white border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-400 hover:text-blue-500 rounded-full cursor-ew-resize z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
+                            onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX)}
+                            title="좌우로 드래그하여 카드 위치 자유 이동"
+                          >
+                            <MoveHorizontal size={18} />
+                          </div>
+                        )}
+
                         {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-red-400 hover:text-red-600 bg-gray-50 p-1.5 rounded-full z-30`}><Trash2 size={16} /></button>}
                         {isEditing && !isExported ? (
                           <div className={`flex flex-col gap-2 mb-4 ${isEven ? '' : 'md:items-end'}`}>
@@ -538,18 +635,18 @@ ${code}
                             {isEven ? (
                               /* 오른쪽 배치 카드: 우측, 하단 핸들 제공 */
                               <>
-                                <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-400/20 transition-colors rounded-r-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', false)}></div>
-                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
-                                <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-gray-300 hover:text-blue-600 rounded-br-2xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', false)} title="드래그하여 크기 조절">
+                                <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-30 hover:bg-blue-400/20 transition-colors rounded-r-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-gray-300 hover:text-blue-600 rounded-br-2xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', false)} title="드래그하여 크기 조절">
                                   <ArrowDownRight size={18} />
                                 </div>
                               </>
                             ) : (
                               /* 왼쪽 배치 카드: 좌측, 하단 핸들 제공 */
                               <>
-                                <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-400/20 transition-colors rounded-l-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', false)}></div>
-                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
-                                <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-gray-300 hover:text-blue-600 rounded-bl-2xl z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', false)} title="드래그하여 크기 조절">
+                                <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-30 hover:bg-blue-400/20 transition-colors rounded-l-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-gray-300 hover:text-blue-600 rounded-bl-2xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', false)} title="드래그하여 크기 조절">
                                   <ArrowDownLeft size={18} />
                                 </div>
                               </>
@@ -835,7 +932,7 @@ ${code}
           {isEditing && (
             <div className="flex flex-col mb-2 gap-2 w-full items-center">
               <p className="text-xs text-gray-500 font-semibold flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-md text-center">
-                <ImageIcon size={14} /> 모서리와 테두리를 드래그하여 가로/세로 크기 변경 (이미지는 잘리지 않습니다)
+                <ImageIcon size={14} /> 테두리를 드래그하여 가로/세로 무제한 확장 (이미지는 원본 비율을 유지하며 잘리지 않습니다)
               </p>
             </div>
           )}
@@ -927,8 +1024,8 @@ ${code}
                       {/* 🛠 자유 크기 조절 핸들 (위치/정렬에 따라 제공되는 핸들 다름) */}
                       {alignCenter && (
                         <>
-                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
-                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
                           <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
                             <ArrowDownRight size={16} />
                           </div>
@@ -940,7 +1037,7 @@ ${code}
                       
                       {alignRight && !alignCenter && (
                         <>
-                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
                           <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-white bg-blue-500 rounded-tr-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')} title="드래그하여 크기 조절">
                             <ArrowDownLeft size={16} />
                           </div>
@@ -949,7 +1046,7 @@ ${code}
 
                       {!alignRight && !alignCenter && (
                         <>
-                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
                           <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
                             <ArrowDownRight size={16} />
                           </div>
@@ -957,7 +1054,7 @@ ${code}
                       )}
                       
                       {/* 공통 적용 하단 핸들 */}
-                      <div className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 's')}></div>
+                      <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 's')}></div>
                     </>
                   )}
                 </div>

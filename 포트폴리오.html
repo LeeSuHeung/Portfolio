@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>포트폴리오 빌더</title>
+  <title>프리미엄 포트폴리오 빌더</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,27 +12,28 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
-  <!-- Babel (브라우저에서 JSX 컴파일) -->
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
+    html { scroll-behavior: smooth; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    input:focus { outline: none; box-shadow: none; }
+    body { background-color: #FAFAFA; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     
-    /* 반응형 화면 크기별 중앙점과 카드 사이의 간격 수치 (스마트 연결선 길이 자동 계산용) */
-    .gap-vars { --card-gap: 64px; } /* 모바일 */
-    @media (min-width: 768px) { .gap-vars { --card-gap: 32px; } } /* 태블릿 */
-    @media (min-width: 1024px) { .gap-vars { --card-gap: 48px; } } /* 데스크탑 */
+    /* 부드러운 커스텀 그림자 */
+    .soft-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20 overflow-x-auto">
+<body class="text-slate-800 antialiased min-h-screen pb-24 overflow-x-auto overflow-y-auto relative selection:bg-indigo-100 selection:text-indigo-900">
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
     const { useState, useRef, useEffect } = React;
 
-    // --- Lucide 아이콘 ---
-    const IconBase = ({ children, size = 24, className = "" }) => (
+    // --- 미니멀 아이콘 세트 (Lucide) ---
+    const IconBase = ({ children, size = 20, className = "" }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
     );
     const Eye = (p) => <IconBase {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></IconBase>;
@@ -50,10 +51,9 @@
     const RotateCcw = (p) => <IconBase {...p}><polyline points="3 2 3 14 15 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L3 14"/></IconBase>;
     const ArrowDownRight = (p) => <IconBase {...p}><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></IconBase>;
     const ArrowDownLeft = (p) => <IconBase {...p}><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></IconBase>;
-    const MoveHorizontal = (p) => <IconBase {...p}><polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/></IconBase>;
+    const Move = (p) => <IconBase {...p}><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="19 9 22 12 19 15"/><polyline points="9 19 12 22 15 19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></IconBase>;
 
     // --- 초기 데이터 세팅 ---
-    // /* DATA_START */
     const initialHeader = {
       name: "게임 기획자",
       email: "GUPABAL@kakao.com",
@@ -69,23 +69,19 @@
       { id: 2, period: "2012.07 ~ 2016.07", company: "LOGIWARE (대리)", project: "대표 게임: 그랑에이지, 소울슬래쉬 사가 | 엔진: 자체 엔진", tags: "시스템 기획, 글로벌 서비스, 자체 엔진", images: [], cardOffsetX: 0 },
       { id: 1, period: "2011.01 ~ 2012.02", company: "GAMEUS (사원)", project: "대표 게임: H.I.S (히어로즈 인 더 스카이) | 엔진: 유니티", tags: "Unity, 데이터 관리, QA", images: [], cardOffsetX: 0 }
     ];
-    // /* DATA_END */
 
     const isExported = false; 
 
-    // --- 100% 로컬 데이터 전용 로딩 ---
+    // --- 로컬 데이터 로딩 ---
     const loadLocalData = () => {
       if (isExported) return { header: initialHeader, timeline: initialTimeline };
       try {
         const localData = localStorage.getItem('portfolioLocalData');
-        if (localData) {
-          return JSON.parse(localData);
-        }
+        if (localData) return JSON.parse(localData);
       } catch(e) { console.error("로컬 데이터를 불러오지 못했습니다.", e); }
       return { header: initialHeader, timeline: initialTimeline };
     };
 
-    // --- 이미지 압축 및 비율 계산 (100% 로컬) ---
     const resizeImage = (dataUrl, maxWidth = 1200) => {
       return new Promise((resolve) => {
         const img = new Image();
@@ -102,10 +98,7 @@
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          resolve({
-            url: canvas.toDataURL('image/jpeg', 0.85),
-            aspectRatio: aspectRatio
-          });
+          resolve({ url: canvas.toDataURL('image/jpeg', 0.85), aspectRatio: aspectRatio });
         };
         img.src = dataUrl;
       });
@@ -121,16 +114,19 @@
       const [activeCardId, setActiveCardId] = useState(null);
       const [toastMsg, setToastMsg] = useState('');
       const [isSaved, setIsSaved] = useState(true);
+      const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-      // --- 여러 상태를 덮어쓰기 없이 한 번에! 동시 업데이트 패치 ---
+      useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, []);
+
       const updateTimelineItem = (id, fieldOrUpdates, value) => {
         setTimeline(prev => prev.map(item => {
           if (item.id === id) {
-            if (typeof fieldOrUpdates === 'string') {
-              return { ...item, [fieldOrUpdates]: value };
-            } else {
-              return { ...item, ...fieldOrUpdates }; // 다중 필드(가로/세로) 동시 병합 처리
-            }
+            if (typeof fieldOrUpdates === 'string') return { ...item, [fieldOrUpdates]: value };
+            else return { ...item, ...fieldOrUpdates };
           }
           return item;
         }));
@@ -140,27 +136,19 @@
 
       const addExperience = () => {
         const newItem = {
-          id: Date.now(),
-          period: "YYYY.MM ~ YYYY.MM",
-          company: "새로운 회사 (직급)",
-          project: "대표 게임: 프로젝트명 | 엔진: 유니티",
-          tags: "태그1, 태그2",
-          images: [],
-          cardWidth: null,
-          cardHeight: null,
-          cardOffsetX: 0
+          id: Date.now(), period: "YYYY.MM ~ YYYY.MM", company: "새로운 회사 (직급)", project: "대표 게임: 프로젝트명 | 엔진: 유니티", tags: "태그1, 태그2",
+          images: [], cardWidth: null, cardHeight: null, cardOffsetX: 0, cardOffsetY: 0, lineOffsetX: 0, lineOffsetY: 0
         };
         setTimeline(prev => [newItem, ...prev]); 
       };
 
-      // --- 카드 크기 무제한 확장 로직 ---
+      // --- 🛠 카드 크기 무제한 확장 로직 ---
       const [resizingCardIdx, setResizingCardIdx] = useState(null);
       const [cardResizeStart, setCardResizeStart] = useState({x: 0, y: 0, w: 0, h: 0, isCentered: false});
       const [cardResizeDir, setCardResizeDir] = useState(null); 
 
       const handleCardResizeStart = (e, id, dir, isCentered = false) => {
-        e.stopPropagation(); 
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         const rect = e.currentTarget.parentElement.getBoundingClientRect();
         setResizingCardIdx(id);
         setCardResizeDir(dir);
@@ -172,62 +160,70 @@
         const handleMove = (e) => {
           let deltaX = e.clientX - cardResizeStart.x;
           const deltaY = e.clientY - cardResizeStart.y;
-          
-          if (cardResizeStart.isCentered) {
-            deltaX *= 2;
-          }
+          if (cardResizeStart.isCentered) deltaX *= 2;
 
           let newW = cardResizeStart.w;
           let newH = cardResizeStart.h;
 
-          // 방향에 따른 무제한 확장
-          if (cardResizeDir === 'e' || cardResizeDir === 'se') {
-            newW = Math.max(300, cardResizeStart.w + deltaX);
-          }
-          if (cardResizeDir === 'w' || cardResizeDir === 'sw') {
-            newW = Math.max(300, cardResizeStart.w - deltaX);
-          }
-          if (cardResizeDir === 's' || cardResizeDir === 'se' || cardResizeDir === 'sw') {
-            newH = Math.max(200, cardResizeStart.h + deltaY);
-          }
+          if (cardResizeDir === 'e' || cardResizeDir === 'se') newW = Math.max(280, cardResizeStart.w + deltaX);
+          if (cardResizeDir === 'w' || cardResizeDir === 'sw') newW = Math.max(280, cardResizeStart.w - deltaX);
+          if (cardResizeDir === 's' || cardResizeDir === 'se' || cardResizeDir === 'sw') newH = Math.max(150, cardResizeStart.h + deltaY);
           
-          // 가로와 세로 길이를 한번에 묶어서 업데이트! (덮어쓰기 버그 완벽 해결)
           updateTimelineItem(resizingCardIdx, { cardWidth: newW, cardHeight: newH });
         };
         const handleUp = () => { setResizingCardIdx(null); setCardResizeDir(null); };
         window.addEventListener('pointermove', handleMove);
         window.addEventListener('pointerup', handleUp);
-        return () => {
-          window.removeEventListener('pointermove', handleMove);
-          window.removeEventListener('pointerup', handleUp);
-        }
+        return () => { window.removeEventListener('pointermove', handleMove); window.removeEventListener('pointerup', handleUp); }
       }, [resizingCardIdx, cardResizeStart, cardResizeDir]);
 
-      // --- 카드 좌우 이동 (오프셋) 로직 ---
+      // --- 🛠 카드 2D 이동 로직 ---
       const [draggingCardOffset, setDraggingCardOffset] = useState(null);
-
-      const handleCardOffsetStart = (e, id, currentOffset) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setDraggingCardOffset({ id, startX: e.clientX, startOffset: currentOffset || 0 });
+      const handleCardOffsetStart = (e, id, curX, curY) => {
+        e.stopPropagation(); e.preventDefault();
+        setDraggingCardOffset({ id, startX: e.clientX, startY: e.clientY, startOffsetX: curX || 0, startOffsetY: curY || 0 });
       };
 
       useEffect(() => {
         if (draggingCardOffset === null) return;
         const handleMove = (e) => {
           const deltaX = e.clientX - draggingCardOffset.startX;
-          updateTimelineItem(draggingCardOffset.id, 'cardOffsetX', draggingCardOffset.startOffset + deltaX);
+          const deltaY = e.clientY - draggingCardOffset.startY;
+          updateTimelineItem(draggingCardOffset.id, {
+            cardOffsetX: draggingCardOffset.startOffsetX + deltaX,
+            cardOffsetY: draggingCardOffset.startOffsetY + deltaY
+          });
         };
         const handleUp = () => setDraggingCardOffset(null);
         window.addEventListener('pointermove', handleMove);
         window.addEventListener('pointerup', handleUp);
-        return () => {
-          window.removeEventListener('pointermove', handleMove);
-          window.removeEventListener('pointerup', handleUp);
-        };
+        return () => { window.removeEventListener('pointermove', handleMove); window.removeEventListener('pointerup', handleUp); };
       }, [draggingCardOffset]);
 
-      // --- 로컬스토리지 자동 저장 ---
+      // --- 🛠 선(Line) 앵커 독립 이동 로직 ---
+      const [draggingLineOffset, setDraggingLineOffset] = useState(null);
+      const handleLineOffsetStart = (e, id, curX, curY) => {
+        e.stopPropagation(); e.preventDefault();
+        setDraggingLineOffset({ id, startX: e.clientX, startY: e.clientY, startOffsetX: curX || 0, startOffsetY: curY || 0 });
+      };
+
+      useEffect(() => {
+        if (draggingLineOffset === null) return;
+        const handleMove = (e) => {
+          const deltaX = e.clientX - draggingLineOffset.startX;
+          const deltaY = e.clientY - draggingLineOffset.startY;
+          updateTimelineItem(draggingLineOffset.id, {
+            lineOffsetX: draggingLineOffset.startOffsetX + deltaX,
+            lineOffsetY: draggingLineOffset.startOffsetY + deltaY
+          });
+        };
+        const handleUp = () => setDraggingLineOffset(null);
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        return () => { window.removeEventListener('pointermove', handleMove); window.removeEventListener('pointerup', handleUp); };
+      }, [draggingLineOffset]);
+
+      // 로컬스토리지 자동 저장
       useEffect(() => {
         if (isExported) return;
         setIsSaved(false);
@@ -236,30 +232,24 @@
             localStorage.setItem('portfolioLocalData', JSON.stringify({ header, timeline }));
             setIsSaved(true);
           } catch(e) { console.error("저장 실패", e); }
-        }, 1000); 
+        }, 800); 
         return () => clearTimeout(timer);
       }, [header, timeline]);
 
-      // 글로벌 클립보드 붙여넣기(Ctrl+V)
+      // 클립보드 이미지 붙여넣기
       useEffect(() => {
         const handleGlobalPaste = async (e) => {
           if (!isEditing || isExported) return;
           const items = e.clipboardData?.items;
           if (!items) return;
-
           const files = [];
           for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-              files.push(items[i].getAsFile());
-            }
+            if (items[i].type.indexOf('image') !== -1) files.push(items[i].getAsFile());
           }
           if (files.length === 0) return;
 
           let targetId = activeCardId;
-          if (!targetId && timeline.length > 0) {
-            targetId = timeline[0].id;
-            setActiveCardId(targetId);
-          }
+          if (!targetId && timeline.length > 0) { targetId = timeline[0].id; setActiveCardId(targetId); }
           if (!targetId) return;
 
           const activeItemIndex = timeline.findIndex(t => t.id === targetId);
@@ -274,45 +264,29 @@
                 const { url, aspectRatio } = await resizeImage(ev.target.result);
                 const initW = isLarge ? 240 : 160;
                 const initH = initW / aspectRatio;
-
-                resolve({
-                  id: Date.now() + Math.random(),
-                  src: url,
-                  aspectRatio: aspectRatio,
-                  width: initW,
-                  height: initH,
-                  link: "",
-                  memos: [] 
-                });
+                resolve({ id: Date.now() + Math.random(), src: url, aspectRatio: aspectRatio, width: initW, height: initH, link: "", memos: [] });
               };
               reader.readAsDataURL(file);
             });
           }));
-
           updateTimelineItem(targetId, 'images', [...activeItem.images, ...processedImages]);
         };
-
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
       }, [isEditing, activeCardId, timeline]);
 
       const handleReset = () => {
-        if (window.confirm("경고: 모든 변경사항과 추가한 사진이 삭제되고 빈 화면으로 초기화됩니다.\n정말 초기화하시겠습니까?")) {
+        if (window.confirm("경고: 모든 데이터가 삭제되고 처음 상태로 초기화됩니다.\n계속하시겠습니까?")) {
           setHeader({ name: "게임 기획자", email: "GUPABAL@kakao.com", phone: "010-4567-5368" });
-          setTimeline([]); 
-          localStorage.removeItem('portfolioLocalData'); 
-          setToastMsg("포트폴리오가 빈 화면으로 초기화되었습니다.");
+          setTimeline([]); localStorage.removeItem('portfolioLocalData'); 
+          setToastMsg("초기화가 완료되었습니다.");
           setTimeout(() => setToastMsg(''), 4000);
         }
       };
 
       const handleDownloadHTML = () => {
         const scriptElement = document.querySelector('script[type="text/babel"]');
-        if (!scriptElement) {
-          setToastMsg("HTML 코드를 생성할 수 없습니다.");
-          setTimeout(() => setToastMsg(''), 3000);
-          return;
-        }
+        if (!scriptElement) { setToastMsg("오류가 발생했습니다."); setTimeout(() => setToastMsg(''), 3000); return; }
         
         let code = scriptElement.innerText;
         const dataReplacement = `\n    const initialHeader = ${JSON.stringify(header, null, 2)};\n    const initialTimeline = ${JSON.stringify(timeline, null, 2)};\n    `;
@@ -332,14 +306,15 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin>${scriptClose}
   <script src="https://unpkg.com/@babel/standalone/babel.min.js">${scriptClose}
   <style>
+    html { scroll-behavior: smooth; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .gap-vars { --card-gap: 64px; }
-    @media (min-width: 768px) { .gap-vars { --card-gap: 32px; } }
-    @media (min-width: 1024px) { .gap-vars { --card-gap: 48px; } }
+    input:focus { outline: none; box-shadow: none; }
+    body { background-color: #FAFAFA; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .soft-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen pb-20 overflow-x-auto">
+<body class="text-slate-800 antialiased min-h-screen pb-24 overflow-x-auto overflow-y-auto relative selection:bg-indigo-100 selection:text-indigo-900">
   <div id="root"></div>
   <script type="text/babel">
 ${code}
@@ -355,172 +330,214 @@ ${code}
         a.click();
         URL.revokeObjectURL(url);
         
-        setToastMsg("편집이 완벽하게 잠긴 최종 포트폴리오 HTML 파일이 다운로드되었습니다!");
+        setToastMsg("HTML 파일이 저장되었습니다!");
         setTimeout(() => setToastMsg(''), 4000);
+      };
+
+      // 🎨 중앙 축과 카드를 심플하게 이어주는 '다이렉트 스마트 선' 렌더링
+      const renderSmartLine = (item, isFirst, isEven) => {
+          let defaultX = 0;
+          let defaultY = 0;
+          
+          if (isFirst) {
+              defaultX = 0;
+              defaultY = 64; 
+          } else {
+              if (window.innerWidth < 768) {
+                  defaultX = 32; 
+                  defaultY = 0;
+              } else {
+                  defaultX = isEven ? 48 : -48;
+                  defaultY = 0;
+              }
+          }
+          
+          const lx = defaultX + (item.cardOffsetX || 0) + (item.lineOffsetX || 0);
+          const ly = defaultY + (item.cardOffsetY || 0) + (item.lineOffsetY || 0);
+          
+          const length = Math.sqrt(lx*lx + ly*ly);
+          const angle = Math.atan2(ly, lx) * (180 / Math.PI);
+
+          return (
+              <div 
+                  className="absolute top-0 left-0 origin-top-left border-t-[1.5px] border-dashed border-indigo-300 pointer-events-none"
+                  style={{
+                      width: `${length}px`,
+                      transform: `rotate(${angle}deg)`,
+                      zIndex: -1 // 선이 중심 원 밑으로 깔리게 처리
+                  }}
+              >
+                  {/* 에디팅 모드: 투명한 앵커 핸들 (마우스 오버 시에만 예쁜 보라색 점이 나타남) */}
+                  {isEditing && !isExported && (
+                      <div 
+                          className="absolute right-0 top-0 transform translate-x-1/2 -translate-y-1/2 w-6 h-6 cursor-pointer pointer-events-auto flex items-center justify-center group/line z-50"
+                          onPointerDown={(e) => handleLineOffsetStart(e, item.id, item.lineOffsetX, item.lineOffsetY)}
+                          title="선 끝을 드래그해 원하는 곳에 연결하세요"
+                      >
+                          <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 opacity-0 group-hover/line:opacity-100 transition-opacity shadow-[0_0_8px_rgba(99,102,241,0.5)] border border-white"></div>
+                      </div>
+                  )}
+                  {/* 완성본(보기) 모드: 촌스러운 끝점 삭제! 선만 카드에 부드럽게 닿게 처리 */}
+              </div>
+          );
       };
 
       return (
         <div>
+          {/* 토스트 알림 */}
           {toastMsg && (
-            <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-2 animate-bounce">
-              <CheckCircle size={18} className="text-green-400" />
+            <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl z-[200] flex items-center gap-2 animate-bounce text-sm font-medium">
+              <CheckCircle size={16} className="text-emerald-400" />
               {toastMsg}
             </div>
           )}
 
+          {/* 상단 컨트롤 바 */}
           {!isExported && (
-            <div className="fixed top-4 right-4 z-50 flex items-center gap-3 shadow-lg rounded-full bg-white p-2 border border-gray-200">
-              <div className="hidden sm:flex items-center ml-2 mr-1">
+            <div className="fixed top-4 right-4 z-50 flex items-center gap-2 shadow-sm rounded-full bg-white/90 backdrop-blur-md p-1.5 border border-slate-200">
+              <div className="hidden sm:flex items-center ml-3 mr-2">
                 {!isSaved ? (
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                    <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    자동 저장 중...
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                    <svg className="animate-spin h-3 w-3 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    저장 중
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100 transition-all">
-                    <CheckCircle size={14} />
-                    로컬 저장됨
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-500">
+                    <CheckCircle size={12} />
+                    저장 완료
                   </span>
                 )}
               </div>
 
-              <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
 
-              <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold transition-colors text-red-600 hover:bg-red-50" title="모든 변경사항을 삭제하고 처음 상태로 되돌립니다.">
-                <RotateCcw size={18} />
-                <span className="hidden sm:inline text-sm">초기화</span>
+              <button onClick={handleReset} className="flex items-center gap-1 px-3 py-1.5 rounded-full font-bold transition-colors text-rose-500 hover:bg-rose-50" title="모든 데이터 초기화">
+                <RotateCcw size={14} />
+                <span className="hidden sm:inline text-xs">초기화</span>
               </button>
 
-              <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
 
-              <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-colors ${isEditing ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                {isEditing ? <Eye size={18} /> : <Edit3 size={18} />}
-                {isEditing ? "미리보기 모드" : "편집 모드"}
+              <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-xs transition-colors ${isEditing ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {isEditing ? <Eye size={14} /> : <Edit3 size={14} />}
+                {isEditing ? "미리보기" : "편집하기"}
               </button>
-              <button onClick={handleDownloadHTML} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition duration-300 flex items-center gap-2">
-                <Download size={18} /> HTML 다운로드
+              <button onClick={handleDownloadHTML} className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-4 rounded-full transition duration-300 flex items-center gap-1.5 text-xs shadow-sm ml-1">
+                <Download size={14} /> 파일 저장
               </button>
             </div>
           )}
 
-          <header className="max-w-4xl mx-auto pt-20 pb-12 px-6 text-center">
+          {/* 헤더 */}
+          <header className="max-w-4xl mx-auto pt-24 pb-12 px-6 text-center">
             {isEditing && !isExported ? (
-              <div className="space-y-4 max-w-2xl mx-auto border-b border-dashed border-gray-200 pb-8">
-                <input value={header.name} onChange={(e) => setHeader({...header, name: e.target.value})} className="text-4xl md:text-5xl font-extrabold text-gray-900 text-center w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-blue-500 outline-none pb-2" placeholder="이름 또는 직무" />
-                <div className="flex justify-center gap-4 text-sm text-gray-500 mt-4">
-                  <input value={header.email} onChange={(e) => setHeader({...header, email: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="이메일" />
-                  <input value={header.phone} onChange={(e) => setHeader({...header, phone: e.target.value})} className="bg-transparent border-b border-dashed border-gray-300 outline-none text-center" placeholder="연락처" />
+              <div className="space-y-3 max-w-2xl mx-auto pb-6">
+                <input value={header.name} onChange={(e) => setHeader({...header, name: e.target.value})} className="text-4xl md:text-5xl font-black text-slate-800 text-center w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 transition-colors pb-2" placeholder="포트폴리오 제목" />
+                <div className="flex justify-center gap-6 text-sm text-slate-500 mt-2">
+                  <input value={header.email} onChange={(e) => setHeader({...header, email: e.target.value})} className="bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 transition-colors text-center w-48 py-1" placeholder="이메일" />
+                  <input value={header.phone} onChange={(e) => setHeader({...header, phone: e.target.value})} className="bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 transition-colors text-center w-48 py-1" placeholder="연락처" />
                 </div>
               </div>
             ) : (
-              <div className="border-b border-dashed border-gray-200 pb-8">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">{header.name.replace('포트폴리오', '')} <span className="text-blue-600">포트폴리오</span></h1>
-                <div className="flex justify-center gap-4 text-sm text-gray-500">
-                  <span>📧 {header.email}</span>
-                  <span>📱 {header.phone}</span>
+              <div className="pb-6">
+                <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">{header.name}</h1>
+                <div className="flex justify-center gap-8 text-sm font-medium text-slate-500">
+                  <span className="flex items-center gap-1.5"><IconBase size={14}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></IconBase> {header.email}</span>
+                  <span className="flex items-center gap-1.5"><IconBase size={14}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase> {header.phone}</span>
                 </div>
               </div>
             )}
           </header>
 
-          <section className="gap-vars w-full px-4 sm:px-8 md:px-16 py-4 relative">
-            {/* 전체 배경을 관통하는 옅은 파란색 중앙 수직선 */}
-            <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-blue-200 transform md:-translate-x-1/2 rounded z-0"></div>
+          {/* 메인 캔버스 영역 */}
+          <section className="w-full px-4 sm:px-8 md:px-16 py-8 relative">
+            {/* 🎨 중앙 수직 연대기 선 (투박함을 줄인 1px Thin 라인) */}
+            <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-slate-200 transform md:-translate-x-1/2 z-0"></div>
 
-            <div className="space-y-12 relative z-10 w-full flex flex-col items-center">
+            <div className="space-y-16 relative w-full flex flex-col items-center">
               {timeline.map((item, index) => {
                 const isEven = index % 2 === 1; 
                 const isFirst = index === 0;
                 
                 if (isFirst) {
                   return (
-                    <div key={item.id} className="relative flex flex-col items-center justify-center group mb-16 timeline-card w-full mt-8">
-                      {/* 중앙 메인 점 (연대기 점) */}
-                      <div className="w-12 h-12 rounded-full bg-indigo-600 border-4 border-white shadow-lg flex items-center justify-center z-20 mb-4 shrink-0">
-                        <span className="text-white font-bold text-sm">Now</span>
+                    <div key={item.id} className="relative flex flex-col items-center justify-center group mb-12 w-full pt-12">
+                      
+                      {/* 🌟 중앙 앵커 영역 */}
+                      <div className="absolute top-0 left-8 md:left-1/2 w-0 h-0 z-10">
+                        {/* 스마트 연결선 (z-index -1로 중심점 아래 깔림) */}
+                        <div className="absolute top-0 left-0 w-0 h-0 z-0">
+                           {renderSmartLine(item, true, false)}
+                        </div>
+                        {/* 최상단 Now 둥근 점 (디자인 세련되게 크기 축소) */}
+                        <div className="absolute top-0 left-0 w-10 h-10 bg-indigo-600 rounded-full shadow-sm flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 z-10">
+                          <span className="text-white font-bold text-[10px] tracking-wider uppercase">Now</span>
+                        </div>
                       </div>
                       
-                      {/* 카드 전체 래퍼 */}
-                      <div className="relative flex justify-center w-full z-10">
-                        
-                        {/* 🔗 중앙 점과 카드를 다이렉트로 이어주는 스마트 점선 (오른쪽으로 당길 때) */}
-                        <div className={`absolute top-[40px] right-1/2 h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity duration-300 ${(!item.cardOffsetX || Math.abs(item.cardOffsetX) < 5) ? 'opacity-0' : 'opacity-100'}`}
-                             style={{ width: `max(0px, calc(${item.cardOffsetX || 0}px - 50%))` }}>
-                             <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
-                        </div>
-                        
-                        {/* 🔗 중앙 점과 카드를 다이렉트로 이어주는 스마트 점선 (왼쪽으로 당길 때) */}
-                        <div className={`absolute top-[40px] left-1/2 h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity duration-300 ${(!item.cardOffsetX || Math.abs(item.cardOffsetX) < 5) ? 'opacity-0' : 'opacity-100'}`}
-                             style={{ width: `max(0px, calc(-1 * (${item.cardOffsetX || 0}px + 50%)))` }}>
-                             <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
-                        </div>
-
+                      {/* 카드 본체 영역 */}
+                      <div className="relative flex justify-center w-full z-20 mt-10">
                         <div 
                           onClick={() => isEditing && setActiveCardId(item.id)} 
-                          className={`text-left bg-indigo-50 p-8 rounded-3xl border-2 shadow-md relative transition-colors cursor-default shrink-0 ${isEditing && activeCardId === item.id ? 'border-indigo-400 ring-4 ring-indigo-200' : 'border-indigo-100'} ${item.cardWidth ? '' : 'w-full max-w-3xl'}`}
+                          className={`text-left bg-white p-8 rounded-[20px] soft-shadow border transition-colors cursor-default shrink-0 ${isEditing && activeCardId === item.id ? 'border-indigo-300 ring-[3px] ring-indigo-50' : 'border-slate-100'} ${item.cardWidth ? '' : 'w-full max-w-3xl'}`}
                           style={{
                             width: item.cardWidth ? `${item.cardWidth}px` : undefined,
                             minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
                             maxWidth: 'none',
                             minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto',
-                            transform: item.cardOffsetX ? `translateX(${item.cardOffsetX}px)` : undefined
+                            transform: `translate(${item.cardOffsetX || 0}px, ${item.cardOffsetY || 0}px)`
                           }}
                         >
-                          {/* 🛠 중앙 카드 좌우 이동 핸들 */}
+                          {/* 🛠 2D 자유 이동 핸들 (모던한 알약 형태) */}
                           {isEditing && !isExported && (
-                            <div
-                              className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-0.5 bg-white border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 rounded-full cursor-ew-resize z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
-                              onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX)}
-                              title="좌우로 드래그하여 카드 위치 자유 이동"
-                            >
-                              <MoveHorizontal size={18} />
+                            <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 rounded-full cursor-move z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
+                                 onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX, item.cardOffsetY)} title="상하좌우 자유 이동">
+                              <Move size={14} />
                             </div>
                           )}
                           
                           {isEditing && !isExported && (
-                            <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm z-30"><Trash2 size={18} /></button>
+                            <button onClick={() => removeExperience(item.id)} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 bg-slate-50 p-2 rounded-full transition-colors z-30"><Trash2 size={16} /></button>
                           )}
-                          <div className="text-center mb-6">
+                          
+                          <div className="text-center mb-8">
                             {isEditing && !isExported ? (
                               <div className="flex flex-col items-center gap-2">
-                                <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-indigo-300 outline-none text-center w-48" />
-                                <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className="text-3xl font-extrabold text-gray-900 bg-transparent border-b-2 border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
-                                <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className="text-gray-600 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none text-center w-full max-w-md" />
+                                <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-500 font-bold text-xs tracking-widest uppercase bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none text-center w-48 py-1" />
+                                <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className="text-2xl font-black text-slate-800 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none text-center w-full max-w-md py-1" />
+                                <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className="text-slate-500 text-sm font-medium bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none text-center w-full max-w-md py-1" />
                               </div>
                             ) : (
                               <>
-                                <span className="text-indigo-600 font-bold text-sm tracking-wider">{item.period}</span>
-                                <h3 className="text-3xl font-extrabold text-gray-900 mt-2 mb-1">{item.company}</h3>
-                                <p className="text-gray-600 text-sm font-medium">{item.project}</p>
+                                <span className="text-indigo-500 font-bold text-xs tracking-widest uppercase">{item.period}</span>
+                                <h3 className="text-2xl font-black text-slate-800 mt-2 mb-1">{item.company}</h3>
+                                <p className="text-slate-500 text-sm font-medium">{item.project}</p>
                               </>
                             )}
                           </div>
-                          <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-50 w-full mb-4 text-center">
+                          
+                          <div className="w-full mb-6 text-center">
                             <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={true} alignCenter={true} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
                           </div>
+
                           {isEditing && !isExported ? (
-                            <div className="mt-6 flex flex-col items-center">
-                              <span className="text-xs text-gray-500 mb-1">태그 (쉼표로 구분)</span>
-                              <input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full max-w-lg px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-center" />
+                            <div className="mt-4 flex flex-col items-center">
+                              <input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full max-w-lg px-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-indigo-400 text-sm text-center bg-slate-50 transition-all" placeholder="태그 (쉼표로 구분)" />
                             </div>
                           ) : (
-                            <div className="flex justify-center flex-wrap gap-2 mt-6">
-                              {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-4 py-1.5 bg-white text-indigo-600 border border-indigo-200 rounded-full text-sm font-semibold shadow-sm">{tag.trim()}</span>)}
+                            <div className="flex justify-center flex-wrap gap-2 mt-4">
+                              {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-3 py-1 bg-slate-50 text-indigo-600 border border-slate-100 rounded-full text-[12px] font-bold">{tag.trim()}</span>)}
                             </div>
                           )}
                           
-                          {/* 🛠 중앙 포트폴리오 카드 무제한 크기 조절 핸들 */}
+                          {/* 🛠 중앙 카드 무제한 크기 조절 핸들 */}
                           {isEditing && !isExported && (
                             <>
-                              <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-r-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', true)}></div>
-                              <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-l-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', true)}></div>
-                              <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-indigo-300/30 transition-colors rounded-b-3xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', true)}></div>
-                              <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-indigo-300 hover:text-indigo-600 rounded-br-3xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', true)} title="드래그하여 크기 조절">
-                                <ArrowDownRight size={18} />
-                              </div>
-                              <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-indigo-300 hover:text-indigo-600 rounded-bl-3xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', true)} title="드래그하여 크기 조절">
-                                <ArrowDownLeft size={18} />
-                              </div>
+                              <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-indigo-500/10 transition-colors" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', true)}></div>
+                              <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-indigo-500/10 transition-colors" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', true)}></div>
+                              <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-indigo-500/10 transition-colors" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', true)}></div>
+                              <div className="absolute bottom-2 right-2 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-300 hover:text-indigo-500 z-40 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', true)}><ArrowDownRight size={14} /></div>
+                              <div className="absolute bottom-2 left-2 w-5 h-5 cursor-sw-resize flex items-center justify-center text-slate-300 hover:text-indigo-500 z-40 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', true)}><ArrowDownLeft size={14} /></div>
                             </>
                           )}
                         </div>
@@ -529,126 +546,82 @@ ${code}
                   );
                 }
 
-                // 일반 카드 (좌/우 배치 구조)
+                // 일반 카드
                 return (
-                  <div key={item.id} className={`relative flex flex-col md:flex-row w-full group timeline-card mb-12 ${isEven ? '' : 'md:flex-row-reverse'}`}>
+                  <div key={item.id} className={`relative flex flex-col md:flex-row w-full group timeline-card mb-8 ${isEven ? '' : 'md:flex-row-reverse'}`}>
                     
-                    {/* 중앙 연대기 파란 점 */}
-                    <div className="absolute top-10 left-8 md:left-1/2 w-8 h-8 rounded-full bg-blue-600 border-4 border-white shadow flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 z-20 shrink-0">
-                       <div className="w-2 h-2 bg-white rounded-full"></div>
+                    {/* 🌟 중앙 앵커 영역 (세련된 디자인으로 축소) */}
+                    <div className="absolute top-10 left-8 md:left-1/2 w-0 h-0 z-10">
+                       {/* 스마트 연결선 생성 영역 */}
+                       <div className="absolute top-0 left-0 w-0 h-0 z-0">
+                           {renderSmartLine(item, false, isEven)}
+                       </div>
+                       {/* 미니멀한 중앙 점 */}
+                       <div className="absolute top-0 left-0 w-4 h-4 bg-white border-[2.5px] border-indigo-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-sm"></div>
                     </div>
 
                     <div className="hidden md:block md:w-1/2 shrink-0"></div>
                     
-                    {/* 일반 카드 외곽 래퍼 */}
                     <div 
-                      className={`flex flex-col shrink-0 transition-colors ${isEven ? 'items-start pl-16 md:pl-8 lg:pl-12' : 'items-start md:items-end pl-16 md:pl-0 md:pr-8 lg:pr-12'} ${item.cardWidth ? '' : 'w-full md:w-1/2'}`}
-                      style={{ 
-                        width: item.cardWidth ? `${item.cardWidth}px` : undefined,
-                        minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined,
-                        maxWidth: 'none'
-                      }}
+                      className={`flex flex-col shrink-0 transition-colors ${isEven ? 'items-start pl-16 md:pl-12' : 'items-start md:items-end pl-16 md:pl-0 md:pr-12'} ${item.cardWidth ? '' : 'w-full md:w-1/2'}`}
+                      style={{ width: item.cardWidth ? `${item.cardWidth}px` : undefined, minWidth: item.cardWidth ? `${item.cardWidth}px` : undefined, maxWidth: 'none' }}
                     >
                       <div 
                         onClick={() => isEditing && setActiveCardId(item.id)} 
-                        className={`bg-white p-6 rounded-2xl shadow-lg border relative transition-colors cursor-default shrink-0 w-full z-10 ${isEditing && activeCardId === item.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}
+                        className={`bg-white p-7 rounded-[20px] soft-shadow border relative transition-colors cursor-default shrink-0 w-full z-20 ${isEditing && activeCardId === item.id ? 'border-indigo-300 ring-[3px] ring-indigo-50' : 'border-slate-100'}`}
                         style={{
                           minHeight: item.cardHeight ? `${item.cardHeight}px` : 'auto',
-                          transform: item.cardOffsetX ? `translateX(${item.cardOffsetX}px)` : undefined
+                          transform: `translate(${item.cardOffsetX || 0}px, ${item.cardOffsetY || 0}px)`
                         }}
                       >
-                        {/* 🔗 일반 카드를 위한 스마트 연결선 (카드 안에 들어가 숨어있다가 당기면 나타남!) */}
-                        {isEven ? (
-                           <>
-                             {/* Right Card (isEven) Lines */}
-                             <div className="absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(var(--card-gap) + ${item.cardOffsetX || 0}px))` }}>
-                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                             <div className="absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(-1 * (var(--card-gap) + ${item.cardOffsetX || 0}px + 100%)))` }}>
-                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                           </>
-                        ) : (
-                           <>
-                             {/* Left Card (!isEven) Lines -> Mobile (behaves like Right Card) */}
-                             <div className="md:hidden absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(var(--card-gap) + ${item.cardOffsetX || 0}px))` }}>
-                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                             <div className="md:hidden absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(-1 * (var(--card-gap) + ${item.cardOffsetX || 0}px + 100%)))` }}>
-                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                             
-                             {/* Left Card (!isEven) Lines -> Desktop */}
-                             <div className="hidden md:block absolute top-10 left-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(var(--card-gap) - ${item.cardOffsetX || 0}px))` }}>
-                                  <div className="absolute right-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                             <div className="hidden md:block absolute top-10 right-full h-0 border-t-[3px] border-dashed border-indigo-400/80 -z-10 transition-opacity"
-                                  style={{ width: `max(0px, calc(${item.cardOffsetX || 0}px - var(--card-gap) - 100%))` }}>
-                                  <div className="absolute left-0 w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] transform -translate-x-1/2 -translate-y-[1.5px]"></div>
-                             </div>
-                           </>
-                        )}
-
-
-                        {/* 🛠 바깥 포트폴리오 카드 좌우 오프셋 이동 핸들 */}
+                        {/* 🛠 일반 카드 2D 이동 핸들 */}
                         {isEditing && !isExported && (
-                          <div
-                            className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-0.5 bg-white border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-400 hover:text-blue-500 rounded-full cursor-ew-resize z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
-                            onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX)}
-                            title="좌우로 드래그하여 카드 위치 자유 이동"
-                          >
-                            <MoveHorizontal size={18} />
+                          <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-300 rounded-full cursor-move z-40 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
+                               onPointerDown={(e) => handleCardOffsetStart(e, item.id, item.cardOffsetX, item.cardOffsetY)} title="자유롭게 카드 이동">
+                            <Move size={14} />
                           </div>
                         )}
 
-                        {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-red-400 hover:text-red-600 bg-gray-50 p-1.5 rounded-full z-30`}><Trash2 size={16} /></button>}
+                        {isEditing && !isExported && <button onClick={() => removeExperience(item.id)} className={`absolute top-4 ${isEven ? 'right-4' : 'right-4 md:left-4 md:right-auto'} text-slate-300 hover:text-rose-500 bg-slate-50 p-2 rounded-full z-30 transition-colors`}><Trash2 size={16} /></button>}
+                        
                         {isEditing && !isExported ? (
-                          <div className={`flex flex-col gap-2 mb-4 ${isEven ? '' : 'md:items-end'}`}>
-                            <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-blue-600 font-bold text-sm tracking-wider bg-transparent border-b border-dashed border-blue-300 outline-none w-40" />
-                            <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className={`text-2xl font-bold text-gray-900 bg-transparent border-b border-dashed border-gray-300 outline-none w-full ${isEven ? '' : 'md:text-right'}`} />
-                            <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className={`text-gray-500 text-sm font-medium bg-transparent border-b border-dashed border-gray-300 outline-none w-full ${isEven ? '' : 'md:text-right'}`} />
+                          <div className={`flex flex-col gap-2 mb-6 ${isEven ? '' : 'md:items-end'}`}>
+                            <input value={item.period} onChange={(e) => updateTimelineItem(item.id, 'period', e.target.value)} className="text-indigo-500 font-bold text-xs tracking-widest uppercase bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none w-48 py-1" />
+                            <input value={item.company} onChange={(e) => updateTimelineItem(item.id, 'company', e.target.value)} className={`text-2xl font-black text-slate-800 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none w-full py-1 ${isEven ? '' : 'md:text-right'}`} />
+                            <input value={item.project} onChange={(e) => updateTimelineItem(item.id, 'project', e.target.value)} className={`text-slate-500 text-sm font-medium bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-300 outline-none w-full py-1 ${isEven ? '' : 'md:text-right'}`} />
                           </div>
                         ) : (
-                          <>
-                            <span className="text-blue-600 font-bold text-sm tracking-wider">{item.period}</span>
-                            <h3 className="text-2xl font-bold text-gray-900 mt-1 mb-1">{item.company}</h3>
-                            <p className="text-gray-500 text-sm font-medium mb-4">{item.project}</p>
-                          </>
+                          <div className={`mb-6 ${isEven ? '' : 'md:text-right'}`}>
+                            <span className="text-indigo-500 font-bold text-xs tracking-widest uppercase block mb-1">{item.period}</span>
+                            <h3 className="text-2xl font-black text-slate-800 mb-1">{item.company}</h3>
+                            <p className="text-slate-500 text-sm font-medium">{item.project}</p>
+                          </div>
                         )}
+
                         <ImageGallery images={item.images} isEditing={isEditing && !isExported} isLarge={false} alignRight={!isEven} onUpdate={(newImages) => updateTimelineItem(item.id, 'images', newImages)} openLightbox={(images, idx) => setLightbox({ isOpen: true, images, currentIndex: idx })} />
+                        
                         {isEditing && !isExported ? (
-                          <div className="mt-4"><input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full px-3 py-1 border rounded-lg outline-none text-sm bg-gray-50" placeholder="태그 (쉼표로 구분)" /></div>
+                          <div className="mt-4"><input value={item.tags} onChange={(e) => updateTimelineItem(item.id, 'tags', e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:border-indigo-300 text-sm bg-slate-50/50 transition-all" placeholder="태그 (쉼표로 구분)" /></div>
                         ) : (
                           <div className={`flex flex-wrap gap-2 mt-4 ${!isEven ? 'md:justify-end' : ''}`}>
-                            {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">{tag.trim()}</span>)}
+                            {item.tags.split(',').map((tag, i) => tag.trim() && <span key={i} className="px-3 py-1 bg-slate-50 border border-slate-100 text-indigo-600 rounded-md text-[12px] font-bold">{tag.trim()}</span>)}
                           </div>
                         )}
                         
-                        {/* 🛠 바깥 포트폴리오 카드 크기 조절 핸들 (가로/세로 독립 확장 무제한) */}
+                        {/* 🛠 일반 카드 조절 핸들 */}
                         {isEditing && !isExported && (
                           <>
                             {isEven ? (
-                              /* 오른쪽 배치 카드: 우측, 하단 핸들 제공 */
                               <>
-                                <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-30 hover:bg-blue-400/20 transition-colors rounded-r-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', false)}></div>
-                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
-                                <div className="absolute bottom-1 right-1 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-gray-300 hover:text-blue-600 rounded-br-2xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', false)} title="드래그하여 크기 조절">
-                                  <ArrowDownRight size={18} />
-                                </div>
+                                <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'e', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-2 right-2 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-300 hover:text-indigo-500 z-40 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'se', false)}><ArrowDownRight size={14} /></div>
                               </>
                             ) : (
-                              /* 왼쪽 배치 카드: 좌측, 하단 핸들 제공 */
                               <>
-                                <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-30 hover:bg-blue-400/20 transition-colors rounded-l-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', false)}></div>
-                                <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-30 hover:bg-blue-400/20 transition-colors rounded-b-2xl" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
-                                <div className="absolute bottom-1 left-1 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-gray-300 hover:text-blue-600 rounded-bl-2xl z-40 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', false)} title="드래그하여 크기 조절">
-                                  <ArrowDownLeft size={18} />
-                                </div>
+                                <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'w', false)}></div>
+                                <div className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCardResizeStart(e, item.id, 's', false)}></div>
+                                <div className="absolute bottom-2 left-2 w-5 h-5 cursor-sw-resize flex items-center justify-center text-slate-300 hover:text-indigo-500 z-40 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCardResizeStart(e, item.id, 'sw', false)}><ArrowDownLeft size={14} /></div>
                               </>
                             )}
                           </>
@@ -662,8 +635,8 @@ ${code}
 
             {isEditing && !isExported && (
               <div className={`flex justify-center relative z-10 ${timeline.length === 0 ? 'mt-8 mb-32' : 'mt-16'}`}>
-                <button onClick={addExperience} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-dashed border-blue-400 text-blue-600 rounded-xl hover:bg-blue-50 font-bold transition-colors shadow-sm">
-                  <Plus size={20} /> 새로운 경력 추가하기
+                <button onClick={addExperience} className="flex items-center gap-2 px-6 py-3 bg-white border border-indigo-200 text-indigo-600 rounded-full hover:bg-indigo-50 font-bold transition-colors shadow-sm text-sm">
+                  <Plus size={18} /> 새 경력 추가
                 </button>
               </div>
             )}
@@ -671,38 +644,32 @@ ${code}
 
           {/* 🚀 라이트박스 팝업 */}
           {lightbox.isOpen && (
-            <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={() => setLightbox({ ...lightbox, isOpen: false })}>
-              <button className="absolute top-4 right-4 text-white hover:text-gray-300 z-[101]" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, isOpen: false }); }}><X size={36} /></button>
-              
+            <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center" onClick={() => setLightbox({ ...lightbox, isOpen: false })}>
+              <button className="absolute top-6 right-6 text-white/70 hover:text-white z-[101] transition-colors" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, isOpen: false }); }}><X size={32} /></button>
               {lightbox.images.length > 1 && (
-                <button className="absolute left-4 md:left-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex - 1 + lightbox.images.length) % lightbox.images.length }); }}><ChevronLeft size={48} /></button>
+                <button className="absolute left-4 md:left-12 text-white/50 hover:text-white z-[101] bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur transition-all" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex - 1 + lightbox.images.length) % lightbox.images.length }); }}><ChevronLeft size={32} /></button>
               )}
-              
               <div className="relative flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]">
                 <div className="relative inline-block">
-                  <img src={lightbox.images[lightbox.currentIndex]?.src} alt="Enlarged view" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-md" onClick={(e) => e.stopPropagation()} />
-                  
-                  {/* 라이트박스에도 둥둥 떠다니는 메모 동일 위치 렌더링 */}
+                  <img src={lightbox.images[lightbox.currentIndex]?.src} alt="Enlarged view" className="max-w-full max-h-[75vh] object-contain shadow-2xl rounded-xl border border-white/10" onClick={(e) => e.stopPropagation()} />
                   {(lightbox.images[lightbox.currentIndex]?.memos || []).map(memo => (
-                    <div key={memo.id} className="absolute bg-white/90 text-gray-900 font-bold text-xs md:text-sm px-3 py-2 rounded-lg shadow-lg whitespace-pre-wrap text-center max-w-[90%]"
+                    <div key={memo.id} className="absolute bg-white/90 backdrop-blur-md border border-white/50 text-slate-800 font-bold text-sm px-4 py-2.5 rounded-xl shadow-xl whitespace-pre-wrap text-center max-w-[90%]"
                          style={{ left: `${memo.x}%`, top: `${memo.y}%`, transform: 'translate(-50%, -50%)', zIndex: 20 }}>
                       {memo.text}
                     </div>
                   ))}
                 </div>
-
                 {lightbox.images[lightbox.currentIndex]?.link && (
-                  <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                    <a href={lightbox.images[lightbox.currentIndex].link} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2">
-                      <LinkIcon size={16} /> 연결된 링크로 이동
+                  <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+                    <a href={lightbox.images[lightbox.currentIndex].link} target="_blank" rel="noopener noreferrer" className="bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-2.5 rounded-full font-bold shadow-lg flex items-center gap-2 transition-transform hover:-translate-y-1 text-sm">
+                      <LinkIcon size={16} /> 링크 열기
                     </a>
                   </div>
                 )}
-                <div className="absolute -bottom-8 left-0 right-0 text-center text-white/70 text-sm font-medium">{lightbox.currentIndex + 1} / {lightbox.images.length}</div>
+                <div className="absolute -bottom-12 left-0 right-0 text-center text-white/50 text-sm font-medium tracking-widest">{lightbox.currentIndex + 1} / {lightbox.images.length}</div>
               </div>
-
               {lightbox.images.length > 1 && (
-                <button className="absolute right-4 md:right-10 text-white hover:text-gray-300 z-[101] bg-black/50 hover:bg-black/80 p-2 rounded-full" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex + 1) % lightbox.images.length }); }}><ChevronRight size={48} /></button>
+                <button className="absolute right-4 md:right-12 text-white/50 hover:text-white z-[101] bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur transition-all" onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, currentIndex: (lightbox.currentIndex + 1) % lightbox.images.length }); }}><ChevronRight size={32} /></button>
               )}
             </div>
           )}
@@ -715,15 +682,13 @@ ${code}
       const dragItem = useRef();
       const dragOverItem = useRef();
 
-      // 마우스 드래그 크기 조절 상태
       const [resizingIdx, setResizingIdx] = useState(null);
       const [resizeStartX, setResizeStartX] = useState(0);
       const [resizeStartY, setResizeStartY] = useState(0);
       const [resizeStartSize, setResizeStartSize] = useState({w: 0, h: 0});
-      const [resizeDir, setResizeDir] = useState(null); // 'e', 'w', 's', 'se', 'sw'
+      const [resizeDir, setResizeDir] = useState(null); 
 
-      // 메모 드래그 이동 상태
-      const [draggingMemo, setDraggingMemo] = useState(null); // { imgIndex, memoId }
+      const [draggingMemo, setDraggingMemo] = useState(null);
       const [memoStartX, setMemoStartX] = useState(0);
       const [memoStartY, setMemoStartY] = useState(0);
       const [memoStartPos, setMemoStartPos] = useState({x: 50, y: 50});
@@ -739,19 +704,9 @@ ${code}
             const reader = new FileReader();
             reader.onload = async (ev) => {
               const { url, aspectRatio } = await resizeImage(ev.target.result);
-              
               const initW = isLarge ? 240 : 160;
               const initH = initW / aspectRatio;
-
-              resolve({ 
-                id: Date.now() + Math.random(), 
-                src: url, 
-                aspectRatio: aspectRatio, 
-                width: initW,
-                height: initH,
-                link: "", 
-                memos: [] 
-              });
+              resolve({ id: Date.now() + Math.random(), src: url, aspectRatio: aspectRatio, width: initW, height: initH, link: "", memos: [] });
             };
             reader.readAsDataURL(file);
           });
@@ -779,7 +734,6 @@ ${code}
 
       const removeImage = (indexToRemove) => onUpdate(images.filter((_, idx) => idx !== indexToRemove));
       
-      // 🛠 마우스 드래그 이미지 자유 크기 조절 로직
       const handleCustomResizeStart = (e, index, currentW, currentH, dir) => {
         e.stopPropagation(); e.preventDefault();
         setResizingIdx(index);
@@ -795,42 +749,25 @@ ${code}
           let deltaX = e.clientX - resizeStartX; 
           const deltaY = e.clientY - resizeStartY;
 
-          // 중앙 정렬된 이미지의 양방향 확장을 위해 보정 (마우스가 가장자리를 따라가도록)
-          if (alignCenter) {
-            deltaX *= 2;
-          }
+          if (alignCenter) deltaX *= 2;
           
           let newW = resizeStartSize.w;
           let newH = resizeStartSize.h;
           
-          if (resizeDir === 'e' || resizeDir === 'se') {
-            newW = Math.max(60, resizeStartSize.w + deltaX);
-          }
-          if (resizeDir === 'w' || resizeDir === 'sw') {
-            newW = Math.max(60, resizeStartSize.w - deltaX);
-          }
-          if (resizeDir === 's' || resizeDir === 'se' || resizeDir === 'sw') {
-            newH = Math.max(60, resizeStartSize.h + deltaY);
-          }
+          if (resizeDir === 'e' || resizeDir === 'se') newW = Math.max(60, resizeStartSize.w + deltaX);
+          if (resizeDir === 'w' || resizeDir === 'sw') newW = Math.max(60, resizeStartSize.w - deltaX);
+          if (resizeDir === 's' || resizeDir === 'se' || resizeDir === 'sw') newH = Math.max(60, resizeStartSize.h + deltaY);
 
           const newImages = [...images];
-          newImages[resizingIdx] = { 
-            ...newImages[resizingIdx], 
-            width: newW,
-            height: newH
-          };
+          newImages[resizingIdx] = { ...newImages[resizingIdx], width: newW, height: newH };
           onUpdate(newImages);
         };
         const handleUp = () => { setResizingIdx(null); setResizeDir(null); };
         window.addEventListener('pointermove', handleMove);
         window.addEventListener('pointerup', handleUp);
-        return () => {
-          window.removeEventListener('pointermove', handleMove);
-          window.removeEventListener('pointerup', handleUp);
-        }
+        return () => { window.removeEventListener('pointermove', handleMove); window.removeEventListener('pointerup', handleUp); }
       }, [resizingIdx, resizeStartX, resizeStartY, resizeStartSize, resizeDir, alignCenter]);
 
-      // 🛠 메모 박스 드래그 이동 로직
       const handleMemoDragStart = (e, imgIndex, memoId, x, y) => {
         e.stopPropagation(); e.preventDefault();
         setDraggingMemo({ imgIndex, memoId });
@@ -863,12 +800,8 @@ ${code}
         const handleUp = () => setDraggingMemo(null);
         window.addEventListener('pointermove', handleMove);
         window.addEventListener('pointerup', handleUp);
-        return () => {
-          window.removeEventListener('pointermove', handleMove);
-          window.removeEventListener('pointerup', handleUp);
-        }
+        return () => { window.removeEventListener('pointermove', handleMove); window.removeEventListener('pointerup', handleUp); }
       }, [draggingMemo, memoStartX, memoStartY, memoStartPos]);
-
 
       const updateImageLink = (index) => {
         const newImages = [...images];
@@ -881,22 +814,16 @@ ${code}
         }
       };
 
-      // 💬 다중 메모 박스 추가
       const addImageMemo = (index) => {
         const text = window.prompt("사진에 남길 메모 내용을 입력하세요.");
         if (text && text.trim()) {
           const newImages = [...images];
           const memos = newImages[index].memos || [];
-          
-          newImages[index] = { 
-            ...newImages[index], 
-            memos: [...memos, { id: Date.now(), text: text.trim(), x: 50, y: 50 }] 
-          };
+          newImages[index] = { ...newImages[index], memos: [...memos, { id: Date.now(), text: text.trim(), x: 50, y: 50 }] };
           onUpdate(newImages);
         }
       };
 
-      // 💬 개별 메모 수정
       const editImageMemo = (imgIndex, memoId) => {
         const newImages = [...images];
         const memos = [...(newImages[imgIndex].memos || [])];
@@ -907,17 +834,13 @@ ${code}
         const text = window.prompt("메모 내용을 수정하세요.\n※ 내용을 모두 지우고 확인을 누르면 삭제됩니다.", currentText);
         
         if (text !== null) {
-          if (text.trim() === "") {
-            memos.splice(memoIndex, 1);
-          } else {
-            memos[memoIndex] = { ...memos[memoIndex], text: text.trim() };
-          }
+          if (text.trim() === "") memos.splice(memoIndex, 1);
+          else memos[memoIndex] = { ...memos[memoIndex], text: text.trim() };
           newImages[imgIndex] = { ...newImages[imgIndex], memos };
           onUpdate(newImages);
         }
       };
 
-      // 💬 개별 메모 삭제 (X 버튼)
       const deleteImageMemo = (imgIndex, memoId) => {
         const newImages = [...images];
         const memos = (newImages[imgIndex].memos || []).filter(m => m.id !== memoId);
@@ -928,28 +851,25 @@ ${code}
       if (!isEditing && images.length === 0) return null;
 
       return (
-        <div className={`w-full mb-4 flex flex-col ${alignCenter ? 'items-center' : (alignRight ? 'items-end' : 'items-start')}`}>
+        <div className={`w-full flex flex-col ${alignCenter ? 'items-center' : (alignRight ? 'items-end' : 'items-start')}`}>
           {isEditing && (
-            <div className="flex flex-col mb-2 gap-2 w-full items-center">
-              <p className="text-xs text-gray-500 font-semibold flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-md text-center">
-                <ImageIcon size={14} /> 테두리를 드래그하여 가로/세로 무제한 확장 (이미지는 원본 비율을 유지하며 잘리지 않습니다)
+            <div className="flex flex-col mb-4 gap-2 w-full items-center">
+              <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                <ImageIcon size={12} /> 테두리를 드래그해 무제한 확장 / 빈 공간을 끌어서 사진 순서 변경
               </p>
             </div>
           )}
           
-          {/* 이미지가 커지면 줄바꿈(flex-wrap)되도록 설정 */}
-          <div className={`flex gap-4 flex-wrap py-4 px-2 w-full ${alignCenter ? 'justify-center' : (alignRight ? 'justify-end' : 'justify-start')} hide-scrollbar`}>
+          <div className={`flex gap-4 flex-wrap w-full ${alignCenter ? 'justify-center' : (alignRight ? 'justify-end' : 'justify-start')} hide-scrollbar`}>
             {images.map((imgObj, index) => {
               const src = imgObj.src || imgObj;
-              // 호환성 처리
               let w = imgObj.width;
               let h = imgObj.height;
               
               if (!w || !h) {
                  const fallbackSize = imgObj.size || (isLarge ? 240 : 160);
                  const aspectRatio = imgObj.aspectRatio || 1;
-                 w = fallbackSize;
-                 h = fallbackSize / aspectRatio;
+                 w = fallbackSize; h = fallbackSize / aspectRatio;
               }
               
               const link = imgObj.link || "";
@@ -958,112 +878,80 @@ ${code}
               const isBeingResized = resizingIdx === index;
               const isBeingMemoDragged = draggingMemo && draggingMemo.imgIndex === index;
               
-              // 틀이 크기에 맞춰 자유롭게 조정되도록 스타일 지정
-              const inlineStyle = { 
-                  width: `${w}px`, 
-                  height: `${h}px`, 
-                  minWidth: '60px',
-                  minHeight: '60px'
-              };
+              const inlineStyle = { width: `${w}px`, height: `${h}px`, minWidth: '60px', minHeight: '60px' };
 
               return (
                 <div 
-                  id={`img-container-${index}`}
-                  key={imgObj.id || index} 
-                  draggable={isEditing && !isBeingResized && !isBeingMemoDragged} 
-                  style={inlineStyle} 
-                  onDragStart={(e) => handleHTML5DragStart(e, index)} 
-                  onDragEnter={(e) => handleDragEnter(e, index)} 
-                  onDragEnd={handleDragEnd} 
-                  onDragOver={(e) => e.preventDefault()} 
-                  onClick={() => !isEditing && openLightbox && openLightbox(images, index)} 
-                  className={`shrink-0 bg-gray-100 relative rounded-md overflow-hidden group shadow-sm border border-gray-200 transition-all ${isEditing ? 'hover:ring-4 hover:ring-blue-200' : 'cursor-pointer hover:shadow-xl hover:ring-2 hover:ring-blue-300'}`}
+                  id={`img-container-${index}`} key={imgObj.id || index} draggable={isEditing && !isBeingResized && !isBeingMemoDragged} 
+                  style={inlineStyle} onDragStart={(e) => handleHTML5DragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onClick={() => !isEditing && openLightbox && openLightbox(images, index)} 
+                  className={`shrink-0 bg-slate-50 relative rounded-xl overflow-hidden group shadow-sm border border-slate-200 transition-all ${isEditing ? 'hover:ring-[3px] hover:ring-indigo-100 border-slate-300' : 'cursor-pointer hover:shadow-lg hover:border-indigo-300'}`}
                 >
-                  {/* object-contain 속성으로 이미지가 잘리지 않고 100% 모두 표시됨 */}
                   <img src={src} alt={`Upload ${index}`} className="w-full h-full object-contain pointer-events-none" />
                   
-                  {/* 💬 자유형 다중 텍스트 메모 박스 */}
                   {memos.map((memo) => (
-                    <div 
-                      key={memo.id}
-                      className={`absolute bg-white/95 border border-gray-200 text-gray-900 font-bold text-xs md:text-sm px-3 py-2 rounded-lg shadow-lg whitespace-pre-wrap text-center max-w-[90%] transition-transform ${isEditing ? 'cursor-move hover:ring-2 hover:ring-blue-400 hover:scale-105' : 'pointer-events-none'}`}
+                    <div key={memo.id} className={`absolute bg-white/95 backdrop-blur-sm border border-slate-200 text-slate-800 font-bold text-[13px] px-3 py-1.5 rounded-lg shadow-md whitespace-pre-wrap text-center max-w-[90%] transition-transform ${isEditing ? 'cursor-move hover:border-indigo-400 hover:scale-105' : 'pointer-events-none'}`}
                       style={{ left: `${memo.x}%`, top: `${memo.y}%`, transform: 'translate(-50%, -50%)', zIndex: 20 }}
                       onPointerDown={(e) => isEditing ? handleMemoDragStart(e, index, memo.id, memo.x, memo.y) : undefined}
                       onDoubleClick={(e) => { if(isEditing) { e.stopPropagation(); editImageMemo(index, memo.id); } }}
                       title={isEditing ? "드래그하여 이동, 더블클릭하여 수정" : ""}
                     >
                       {memo.text}
-                      {/* 메모 개별 삭제(X) 버튼 */}
                       {isEditing && (
-                         <button onClick={(e) => { e.stopPropagation(); deleteImageMemo(index, memo.id); }} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md">
-                           <X size={12} />
-                         </button>
+                         <button onClick={(e) => { e.stopPropagation(); deleteImageMemo(index, memo.id); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-sm"><X size={10} /></button>
                       )}
                     </div>
                   ))}
 
-                  {!isEditing && link && <div className="absolute top-2 right-2 bg-black/70 text-white p-1.5 rounded-md z-10 pointer-events-none shadow-sm backdrop-blur-sm"><LinkIcon size={14} /></div>}
+                  {!isEditing && link && <div className="absolute top-3 right-3 bg-slate-800/80 backdrop-blur-sm text-white p-1.5 rounded-lg z-10 pointer-events-none shadow-md"><LinkIcon size={12} /></div>}
                   
                   {isEditing && (
                     <>
-                      {/* 이미지 전체 삭제 버튼 (우측 상단 고정) */}
-                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"><X size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-2 right-2 bg-slate-200 hover:bg-rose-500 text-slate-500 hover:text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-colors z-30 shadow-sm"><X size={12} /></button>
                       
-                      {/* 중앙 배열된 편집 오버레이 */}
-                      <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-black/10 backdrop-blur-[1px] pointer-events-none">
-                        <div className="flex gap-3 pointer-events-auto">
-                          <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-md hover:bg-gray-100 transition-colors" title={link ? "링크 수정" : "링크 삽입"}>
-                             <LinkIcon size={18} className={link ? "text-blue-600" : ""} />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-slate-900/5 pointer-events-none">
+                        <div className="flex gap-2 pointer-events-auto">
+                          <button onClick={(e) => { e.stopPropagation(); updateImageLink(index); }} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-600 shadow-md hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title={link ? "링크 수정" : "링크 삽입"}>
+                             <LinkIcon size={16} className={link ? "text-indigo-600" : ""} />
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); addImageMemo(index); }} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-md hover:bg-gray-100 transition-colors" title="새 메모 박스 추가">
-                             <MessageSquare size={18} />
+                          <button onClick={(e) => { e.stopPropagation(); addImageMemo(index); }} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-600 shadow-md hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="새 메모 추가">
+                             <MessageSquare size={16} />
                           </button>
                         </div>
                       </div>
 
-                      {/* 🛠 자유 크기 조절 핸들 (위치/정렬에 따라 제공되는 핸들 다름) */}
                       {alignCenter && (
                         <>
-                          <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
-                          <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
-                          <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
-                            <ArrowDownRight size={16} />
-                          </div>
-                          <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-white bg-blue-500 rounded-tr-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')} title="드래그하여 크기 조절">
-                            <ArrowDownLeft size={16} />
-                          </div>
+                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute bottom-1 right-1 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-400 hover:text-indigo-500 z-30 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')}><ArrowDownRight size={12} /></div>
+                          <div className="absolute bottom-1 left-1 w-5 h-5 cursor-sw-resize flex items-center justify-center text-slate-400 hover:text-indigo-500 z-30 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')}><ArrowDownLeft size={12} /></div>
                         </>
                       )}
                       
                       {alignRight && !alignCenter && (
                         <>
-                          <div className="absolute top-0 left-0 w-3 h-full cursor-w-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
-                          <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize flex items-end justify-start p-1.5 text-white bg-blue-500 rounded-tr-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')} title="드래그하여 크기 조절">
-                            <ArrowDownLeft size={16} />
-                          </div>
+                          <div className="absolute top-0 left-0 w-2 h-full cursor-w-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'w')}></div>
+                          <div className="absolute bottom-1 left-1 w-5 h-5 cursor-sw-resize flex items-center justify-center text-slate-400 hover:text-indigo-500 z-30 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'sw')}><ArrowDownLeft size={12} /></div>
                         </>
                       )}
 
                       {!alignRight && !alignCenter && (
                         <>
-                          <div className="absolute top-0 right-0 w-3 h-full cursor-e-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
-                          <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 text-white bg-blue-500 rounded-tl-md z-30 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')} title="드래그하여 크기 조절">
-                            <ArrowDownRight size={16} />
-                          </div>
+                          <div className="absolute top-0 right-0 w-2 h-full cursor-e-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'e')}></div>
+                          <div className="absolute bottom-1 right-1 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-400 hover:text-indigo-500 z-30 opacity-0 group-hover:opacity-100 transition-all" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 'se')}><ArrowDownRight size={12} /></div>
                         </>
                       )}
                       
-                      {/* 공통 적용 하단 핸들 */}
-                      <div className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20 hover:bg-blue-500/50 transition-colors" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 's')}></div>
+                      <div className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-20 hover:bg-indigo-500/10" onPointerDown={(e) => handleCustomResizeStart(e, index, w, h, 's')}></div>
                     </>
                   )}
                 </div>
               );
             })}
             {isEditing && (
-              <label style={{ width: isLarge ? '160px' : '112px', height: isLarge ? '160px' : '112px', minWidth: isLarge ? '160px' : '112px' }} className="shrink-0 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-gray-400 hover:text-blue-500">
-                <Plus size={28} />
-                <span className="text-sm mt-2 font-bold">사진 추가</span>
+              <label style={{ width: isLarge ? '160px' : '112px', height: isLarge ? '160px' : '112px', minWidth: isLarge ? '160px' : '112px' }} className="shrink-0 bg-white rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-all text-slate-400 hover:text-indigo-500 shadow-sm">
+                <Plus size={24} />
+                <span className="text-xs mt-2 font-bold">사진 추가</span>
                 <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
               </label>
             )}
